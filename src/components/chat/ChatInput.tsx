@@ -1,45 +1,47 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
-import { Paperclip, Send, Bot } from 'lucide-react';
+import { useState, KeyboardEvent, useRef, useEffect } from 'react';
+import { Paperclip, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useChatStore } from '@/hooks/useChatStore';
 import { NodeSelector } from './NodeSelector';
 import { cn } from '@/lib/utils';
+import { v4 as uuidv4 } from 'uuid';
 
 export function ChatInput() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { currentSessionId, addMessage, createNewChat } = useChatStore();
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+        }
+    }, [input]);
 
     const handleSend = async () => {
         if (!input.trim()) return;
 
         let activeSessionId = currentSessionId;
-        // Auto-create session if none exists
-        if (!activeSessionId) {
-            // Since createNewChat is void, we'd normally need to wait for state update or refactor store.
-            // For prototype, we'll just not send if no session, or assume user creates one.
-            // But let's try to handle it effectively by just creating it in store if possible or prompting.
-            // For now, I'll just check if currentSessionId exists. If not, I can trigger createNewChat but I won't have the ID immediately.
-            // I'll leave as is with the "Start new chat" hint if empty, or better, auto-trigger it via effect if needed.
-            // Limitation: synchronous state update. 
-            // Better UX: Show a "New Chat" hint in the empty state (ChatArea handles this). 
-            // Here we just guard.
-            if (!activeSessionId) {
-                // We can't send without an ID.
-                return;
-            }
-        }
 
-        if (!activeSessionId) return;
+        // If no session active, or current is null, create one (store ensures no duplicate empties)
+        if (!activeSessionId) {
+            activeSessionId = createNewChat();
+        }
 
         const userMessageContent = input;
         setInput('');
         setIsLoading(true);
 
-        addMessage(activeSessionId, { role: 'user', content: userMessageContent });
+        addMessage(activeSessionId, {
+            id: uuidv4(),
+            role: 'user',
+            content: userMessageContent,
+            timestamp: Date.now()
+        });
 
         try {
             // Simulate API call
@@ -50,7 +52,12 @@ export function ChatInput() {
                 content: `Analysis complete. Based on "${userMessageContent}", here are the findings from the secure HFP node.`
             };
 
-            addMessage(activeSessionId, { role: 'assistant', content: response.content });
+            addMessage(activeSessionId, {
+                id: uuidv4(),
+                role: 'assistant',
+                content: response.content,
+                timestamp: Date.now()
+            });
 
         } catch (error) {
             console.error("Failed to send message", error);
@@ -59,7 +66,7 @@ export function ChatInput() {
         }
     };
 
-    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
@@ -67,71 +74,69 @@ export function ChatInput() {
     };
 
     return (
-        <div className="p-4 bg-hfp-navy">
+        <div className="p-4 bg-background">
             <div className="mx-auto max-w-3xl">
-                {/* Floating Container */}
-                <div className="relative flex flex-col rounded-2xl bg-[#0B1221] border border-slate-800 shadow-xl transition-all focus-within:border-slate-700">
+                {/* Floating Container - Dark Navy Card */}
+                <div className="relative flex flex-col rounded-3xl bg-[#0f172a] border border-slate-800 shadow-2xl transition-all focus-within:border-blue-500/30 min-h-[120px]">
 
-                    {/* Node Selector Row (Optional placement, or inline) */}
-                    {/* Reference image usually shows it inside or on top. I'll place it inside at bottom-right or top-right. */}
-                    {/* Let's place it inside input area or toolbar. */}
-
-                    <div className="flex items-center gap-2 p-3">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 shrink-0 h-8 w-8"
-                            title="Attach file"
-                        >
-                            <Paperclip className="h-5 w-5" />
-                        </Button>
-
-                        <Input
+                    {/* Top: Text Area */}
+                    <div className="p-4 pb-2">
+                        <textarea
+                            ref={textareaRef}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder="Ask anything..."
-                            disabled={!currentSessionId || isLoading}
-                            className="flex-1 border-none bg-transparent px-2 text-base text-slate-200 placeholder:text-slate-600 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-2"
-                            autoComplete="off"
+                            disabled={isLoading}
+                            rows={1}
+                            className="w-full resize-none border-none bg-transparent text-lg text-slate-200 placeholder:text-slate-500 focus:ring-0 focus:outline-none max-h-[200px] overflow-y-auto"
                         />
                     </div>
 
-                    {/* Bottom Toolbar: Node Selector & Send */}
-                    <div className="flex items-center justify-between px-3 pb-3 pt-1">
-                        <div className="flex items-center gap-2">
-                            <NodeSelector className="" />
+                    {/* Bottom: Toolbar */}
+                    <div className="flex items-center justify-between px-3 pb-3">
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-full h-9 w-9 shrink-0"
+                                title="Attach file"
+                            >
+                                <Paperclip className="h-5 w-5" />
+                            </Button>
+
+                            <NodeSelector className="bg-slate-800/50 border-slate-700/50 text-slate-300" />
                         </div>
 
                         <div className="flex items-center gap-2">
                             <Button
                                 onClick={handleSend}
-                                disabled={!input.trim() || !currentSessionId || isLoading}
+                                disabled={!input.trim() || isLoading}
                                 className={cn(
-                                    "h-8 w-8 rounded-lg bg-hfp-teal text-white shadow-sm transition-all hover:bg-hfp-teal/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center p-0"
+                                    "h-10 w-10 rounded-full bg-blue-600 text-white shadow-lg transition-all hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center p-0"
                                 )}
                                 title="Send message"
                             >
                                 {isLoading ? (
-                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                 ) : (
-                                    <Send className="h-4 w-4" />
+                                    <ArrowUp className="h-5 w-5" />
                                 )}
                             </Button>
                         </div>
                     </div>
                 </div>
 
+                {/* Footer Info matches screenshot */}
                 {!currentSessionId && (
                     <div className="mt-4 text-center">
-                        <p className="text-sm text-slate-600">Select a chat or start a new conversation to begin.</p>
+                        <p className="text-sm text-muted-foreground">Select a chat to begin.</p>
                     </div>
                 )}
 
-                {/* Footer info */}
-                <div className="mt-2 text-center">
-                    <p className="text-[10px] text-slate-600">
-                        HealthFirst Priority Secure Workspace. AI generated content may need verification.
+                <div className="mt-3 text-center">
+                    <p className="text-xs text-slate-500">
+                        Press <span className="font-medium text-slate-400">Enter</span> to send, <span className="font-medium text-slate-400">Shift + Enter</span> for new line
                     </p>
                 </div>
             </div>

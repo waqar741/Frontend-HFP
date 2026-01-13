@@ -8,10 +8,11 @@ interface ChatState {
     currentSessionId: string | null;
 
     // Actions
-    createNewChat: () => void;
+    createNewChat: () => string;
     selectSession: (sessionId: string) => void;
     addMessage: (sessionId: string, message: Message) => void;
     deleteSession: (sessionId: string) => void;
+    renameSession: (sessionId: string, newTitle: string) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -21,6 +22,13 @@ export const useChatStore = create<ChatState>()(
             currentSessionId: null,
 
             createNewChat: () => {
+                const state = get();
+                // If there's already an empty session at the top, reuse it
+                if (state.sessions.length > 0 && state.sessions[0].messages.length === 0) {
+                    set({ currentSessionId: state.sessions[0].id });
+                    return state.sessions[0].id;
+                }
+
                 const newSession: ChatSession = {
                     id: uuidv4(),
                     title: 'New Consultation',
@@ -32,6 +40,8 @@ export const useChatStore = create<ChatState>()(
                     sessions: [newSession, ...state.sessions],
                     currentSessionId: newSession.id,
                 }));
+
+                return newSession.id;
             },
 
             selectSession: (sessionId) => {
@@ -75,6 +85,14 @@ export const useChatStore = create<ChatState>()(
                         currentSessionId: nextSessionId
                     };
                 });
+            },
+
+            renameSession: (sessionId, newTitle) => {
+                set((state) => ({
+                    sessions: state.sessions.map((s) =>
+                        s.id === sessionId ? { ...s, title: newTitle } : s
+                    ),
+                }));
             },
         }),
         {

@@ -46,6 +46,7 @@ const nodes = [
     },
 ];
 
+// ... imports
 export function NodeSelector({ className }: { className?: string }) {
     const [open, setOpen] = React.useState(false);
     const [selectedNode, setSelectedNode] = React.useState('hfp-diagnostic-v1');
@@ -70,7 +71,7 @@ export function NodeSelector({ className }: { className?: string }) {
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "h-8 gap-2 rounded-full bg-slate-800/50 px-3 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/50",
+                        "h-8 gap-2 rounded-full bg-muted/50 px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border",
                         className
                     )}
                 >
@@ -83,33 +84,29 @@ export function NodeSelector({ className }: { className?: string }) {
                     <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[250px] p-0 bg-hfp-card border-slate-700 text-slate-100">
+            <PopoverContent className="w-[250px] p-0 bg-popover border-border text-popover-foreground">
                 <Command className="bg-transparent">
-                    <CommandInput placeholder="Search nodes..." className="text-slate-100 placeholder:text-slate-500" />
+                    <CommandInput placeholder="Search nodes..." className="text-foreground placeholder:text-muted-foreground" />
                     <CommandList>
                         {isScanning ? (
-                            <div className="py-6 text-center text-sm text-slate-400 animate-pulse flex flex-col items-center gap-2">
+                            <div className="py-6 text-center text-sm text-muted-foreground animate-pulse flex flex-col items-center gap-2">
                                 <Activity className="h-4 w-4 animate-spin" />
                                 <span>Scanning network...</span>
                             </div>
                         ) : (
                             <>
                                 <CommandEmpty>No node found.</CommandEmpty>
-                                <CommandGroup heading="Available Nodes" className="text-slate-400">
+                                <CommandGroup heading="Available Nodes" className="text-muted-foreground">
                                     {nodes.map((node) => (
                                         <CommandItem
                                             key={node.value}
-                                            value={node.label} // Searching by label usually better UX
+                                            value={node.label}
                                             onSelect={(currentValue) => {
-                                                // CommandItem returns the value in lowercase/normalized usually, but we want to match our specific values. 
-                                                // Actually Command uses the 'value' prop for filtering but onSelect returns the value.
-                                                // Let's rely on finding by label since we passed label as value here? 
-                                                // No, let's keep it safe. 
                                                 const found = nodes.find(n => n.label.toLowerCase() === currentValue.toLowerCase()) || node;
                                                 setSelectedNode(found.value);
                                                 setOpen(false);
                                             }}
-                                            className="text-slate-200 aria-selected:bg-slate-800 aria-selected:text-white cursor-pointer"
+                                            className="text-foreground aria-selected:bg-accent aria-selected:text-accent-foreground cursor-pointer"
                                         >
                                             <div className={cn(
                                                 "mr-2 h-2 w-2 rounded-full",
