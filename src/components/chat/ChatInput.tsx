@@ -70,7 +70,7 @@ export function ChatInput() {
         <div className="p-4 bg-hfp-navy">
             <div className="mx-auto max-w-3xl">
                 {/* Floating Container */}
-                <div className="relative flex flex-col rounded-2xl bg-hfp-card border border-slate-700/50 shadow-lg transition-all focus-within:border-slate-600 focus-within:shadow-xl">
+                <div className="relative flex flex-col rounded-2xl bg-[#0B1221] border border-slate-800 shadow-xl transition-all focus-within:border-slate-700">
 
                     {/* Node Selector Row (Optional placement, or inline) */}
                     {/* Reference image usually shows it inside or on top. I'll place it inside at bottom-right or top-right. */}
@@ -80,7 +80,7 @@ export function ChatInput() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-slate-400 hover:text-white hover:bg-slate-800 shrink-0 h-8 w-8"
+                            className="text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 shrink-0 h-8 w-8"
                             title="Attach file"
                         >
                             <Paperclip className="h-5 w-5" />
@@ -92,7 +92,7 @@ export function ChatInput() {
                             onKeyDown={handleKeyDown}
                             placeholder="Ask anything..."
                             disabled={!currentSessionId || isLoading}
-                            className="flex-1 border-none bg-transparent px-2 text-base text-slate-100 placeholder:text-slate-500 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-2"
+                            className="flex-1 border-none bg-transparent px-2 text-base text-slate-200 placeholder:text-slate-600 focus-visible:ring-0 focus-visible:ring-offset-0 h-auto py-2"
                             autoComplete="off"
                         />
                     </div>
@@ -124,7 +124,7 @@ export function ChatInput() {
 
                 {!currentSessionId && (
                     <div className="mt-4 text-center">
-                        <p className="text-sm text-slate-500">Select a chat or start a new conversation to begin.</p>
+                        <p className="text-sm text-slate-600">Select a chat or start a new conversation to begin.</p>
                     </div>
                 )}
 

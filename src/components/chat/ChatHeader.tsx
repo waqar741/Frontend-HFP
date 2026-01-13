@@ -1,9 +1,10 @@
 'use client';
 
-import { ShieldCheck, PanelLeft } from 'lucide-react';
+import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChatStore } from '@/hooks/useChatStore';
 import { useUIStore } from '@/hooks/useUIStore';
+import { SettingsDialog } from '@/components/settings/SettingsDialog';
 
 export function ChatHeader() {
     const { currentSessionId, sessions } = useChatStore();
@@ -26,7 +27,7 @@ export function ChatHeader() {
             </div>
 
             <div className="flex items-center gap-3 text-slate-200">
-                {/* Placeholder for settings or other actions can go here */}
+                <SettingsDialog />
             </div>
         </header>
     );

@@ -127,13 +127,6 @@ export function NodeSelector({ className }: { className?: string }) {
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
-                                <CommandSeparator className="bg-slate-700" />
-                                <CommandGroup>
-                                    <CommandItem className="text-slate-400 aria-selected:bg-slate-800 aria-selected:text-white cursor-pointer" onSelect={() => alert("Simulated: Connecting to new node...")}>
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Add New Node
-                                    </CommandItem>
-                                </CommandGroup>
                             </>
                         )}
                     </CommandList>
