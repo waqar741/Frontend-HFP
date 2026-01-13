@@ -1,0 +1,33 @@
+'use client';
+
+import { ShieldCheck, PanelLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useChatStore } from '@/hooks/useChatStore';
+import { useUIStore } from '@/hooks/useUIStore';
+
+export function ChatHeader() {
+    const { currentSessionId, sessions } = useChatStore();
+    const { toggleSidebar } = useUIStore();
+    const currentSession = sessions.find(s => s.id === currentSessionId);
+
+    return (
+        <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between bg-hfp-navy/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-hfp-navy/80">
+            <div className="flex items-center gap-4">
+                {/* Sidebar Toggle */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSidebar}
+                    className="text-slate-400 hover:text-white hidden md:flex"
+                    title="Toggle Sidebar"
+                >
+                    <PanelLeft className="h-5 w-5" />
+                </Button>
+            </div>
+
+            <div className="flex items-center gap-3 text-slate-200">
+                {/* Placeholder for settings or other actions can go here */}
+            </div>
+        </header>
+    );
+}
