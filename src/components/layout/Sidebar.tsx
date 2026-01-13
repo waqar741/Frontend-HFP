@@ -1,12 +1,13 @@
 'use client';
 
-import { Plus, Search, MessageSquare, Trash2 } from 'lucide-react';
+import { Plus, Search, MessageSquare, Trash2, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useChatStore } from '@/hooks/useChatStore';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { SettingsDialog } from '@/components/settings/SettingsDialog';
 
 export function Sidebar() {
     const { sessions, currentSessionId, createNewChat, selectSession, deleteSession } = useChatStore();
@@ -16,93 +17,97 @@ export function Sidebar() {
         session.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleDelete = (e: React.MouseEvent, sessionId: string) => {
-        e.stopPropagation();
-        deleteSession(sessionId);
-    };
-
     return (
-        <div className="flex h-full w-full flex-col bg-hfp-card text-slate-100">
-            {/* Header / Logo Area */}
-            <div className="flex h-16 items-center px-6">
-                <h1 className="text-xl font-bold tracking-tight text-hfp-teal">
-                    HealthFirst<span className="text-white">Priority</span>
-                </h1>
+        <div className="flex h-full flex-col p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <div className="bg-hfp-teal h-8 w-8 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">H</span>
+                    </div>
+                    <span className="font-bold text-xl text-slate-100">HFP</span>
+                </div>
+                {/* Settings Dialog Trigger */}
+                <SettingsDialog />
             </div>
 
-            {/* New Chat Action */}
-            <div className="px-4 pb-4">
-                <Button
-                    className="w-full justify-start gap-2 bg-hfp-teal text-white hover:bg-hfp-teal/90"
-                    size="lg"
-                    onClick={createNewChat}
-                >
-                    <Plus className="h-5 w-5" />
-                    New Chat
-                </Button>
-            </div>
+            {/* New Chat Button */}
+            <Button
+                onClick={() => createNewChat()}
+                className="w-full justify-start gap-2 bg-hfp-teal hover:bg-hfp-teal/90 text-white mb-4"
+            >
+                <Plus className="h-5 w-5" />
+                New Chat
+            </Button>
 
             {/* Search */}
-            <div className="px-4 pb-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                        placeholder="Search history..."
-                        className="pl-9 bg-slate-800/50 border-slate-700 text-slate-100 placeholder:text-slate-500 focus-visible:ring-hfp-teal"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
+            <div className="relative mb-4">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                <Input
+                    placeholder="Search conversations"
+                    className="pl-8 bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500 focus-visible:ring-hfp-teal"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
             </div>
 
-            {/* Chat History List */}
-            <div className="flex-1 px-4 pb-4 overflow-hidden">
+            {/* Chat List */}
+            <div className="flex-1 overflow-hidden -mx-2 px-2">
+                <p className="text-xs font-semibold text-slate-500 mb-2 px-2">Conversations</p>
                 <ScrollArea className="h-full">
-                    <div className="space-y-2">
-                        <h3 className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                            Recent
-                        </h3>
-                        {filteredSessions.length === 0 ? (
-                            <p className="px-2 text-sm text-slate-500 italic">No chats found.</p>
-                        ) : (
-                            filteredSessions.map((session) => (
-                                <Button
+                    {filteredSessions.length === 0 ? (
+                        <div className="text-center text-sm text-slate-500 py-4">
+                            No conversations found.
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            {filteredSessions.map((session) => (
+                                <div
                                     key={session.id}
-                                    variant="ghost"
                                     className={cn(
-                                        "group w-full justify-between gap-2 px-2 text-slate-300 hover:bg-slate-800 hover:text-white",
-                                        currentSessionId === session.id && "bg-slate-800/80 text-white font-medium"
+                                        "group flex items-center gap-2 rounded-lg p-2 text-sm transition-colors cursor-pointer",
+                                        currentSessionId === session.id
+                                            ? "bg-slate-800 text-slate-100"
+                                            : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100"
                                     )}
                                     onClick={() => selectSession(session.id)}
                                 >
-                                    <div className="flex items-center gap-2 overflow-hidden">
-                                        <MessageSquare className="h-4 w-4 shrink-0" />
-                                        <span className="truncate">{session.title}</span>
-                                    </div>
-                                    <div
-                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 cursor-pointer rounded transition-opacity"
-                                        onClick={(e) => handleDelete(e, session.id)}
-                                        title="Delete chat"
+                                    <MessageSquare className="h-4 w-4 shrink-0" />
+                                    <span className="flex-1 truncate">
+                                        {session.title}
+                                    </span>
+                                    {/* Delete Action */}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20 hover:text-red-400"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteSession(session.id);
+                                        }}
                                     >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </div>
-                                </Button>
-                            ))
-                        )}
-                    </div>
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </ScrollArea>
             </div>
 
             {/* User Footer */}
-            <div className="border-t border-slate-700 p-4">
-                <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-hfp-teal/20 flex items-center justify-center text-hfp-teal font-bold">
-                        U
+            <div className="mt-4 border-t border-slate-700 pt-4">
+                <div className="flex items-center gap-3 px-2">
+                    <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-medium text-slate-300">
+                        DR
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-sm font-medium">User Account</span>
-                        <span className="text-xs text-slate-400">user@hfp.com</span>
+                    <div className="flex-1 overflow-hidden">
+                        <p className="truncate text-sm font-medium text-slate-200">Dr. Smith</p>
+                        <p className="truncate text-xs text-slate-500">Cardiology Dept.</p>
                     </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white">
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
         </div>
