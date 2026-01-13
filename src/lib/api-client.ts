@@ -3,7 +3,14 @@ export interface Message {
     content: string;
 }
 
-export async function sendChatMessage(messages: Message[], targetNode: string | null, onChunk: (chunk: string) => void) {
+export async function sendChatMessage(
+    messages: Message[],
+    targetNode: string | null,
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
+): Promise<{ tokens?: number; timeMs?: number; tokensPerSec?: number } | undefined> {
+    let stats: { tokens?: number; timeMs?: number; tokensPerSec?: number } | undefined;
+
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
@@ -14,6 +21,7 @@ export async function sendChatMessage(messages: Message[], targetNode: string | 
                 messages,
                 targetNode
             }),
+            signal, // Pass abort signal
         });
 
         if (!response.ok) {
@@ -48,9 +56,20 @@ export async function sendChatMessage(messages: Message[], targetNode: string | 
 
                     try {
                         const parsed = JSON.parse(data);
+
+                        // Extract content
                         const content = parsed.choices?.[0]?.delta?.content;
                         if (content) {
                             onChunk(content);
+                        }
+
+                        // Extract timing stats from final chunk
+                        if (parsed.timings) {
+                            stats = {
+                                tokens: parsed.timings.predicted_n,
+                                timeMs: parsed.timings.predicted_ms,
+                                tokensPerSec: parsed.timings.predicted_per_second
+                            };
                         }
                     } catch (e) {
                         // Skip malformed JSON
@@ -59,6 +78,8 @@ export async function sendChatMessage(messages: Message[], targetNode: string | 
                 }
             }
         }
+
+        return stats;
 
     } catch (error) {
         console.error('API Client Error:', error);

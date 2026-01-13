@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings, Download, Moon, Sun, Laptop } from 'lucide-react';
+import { Settings, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -10,14 +10,10 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { useTheme } from '@/hooks/useTheme';
 import { useChatStore } from '@/hooks/useChatStore';
 import { exportChatToText } from '@/lib/export-utils';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 
 export function SettingsDialog() {
-    const { theme, setTheme } = useTheme();
     const { currentSessionId, sessions } = useChatStore();
     const currentSession = sessions.find(s => s.id === currentSessionId);
 
@@ -43,43 +39,6 @@ export function SettingsDialog() {
                 </DialogHeader>
 
                 <div className="grid gap-6 py-4">
-                    {/* Theme Section */}
-                    <div className="space-y-4">
-                        <h4 className="font-medium leading-none">Appearance</h4>
-                        <RadioGroup defaultValue={theme} onValueChange={(val) => setTheme(val as any)} className="grid grid-cols-3 gap-4">
-                            <div>
-                                <RadioGroupItem value="light" id="light" className="peer sr-only" />
-                                <Label
-                                    htmlFor="light"
-                                    className="flex flex-col items-center justify-between rounded-md border-2 border-border bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-hfp-teal peer-data-[state=checked]:text-hfp-teal [&:has([data-state=checked])]:border-hfp-teal"
-                                >
-                                    <Sun className="mb-3 h-6 w-6" />
-                                    Sterile Light
-                                </Label>
-                            </div>
-                            <div>
-                                <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
-                                <Label
-                                    htmlFor="dark"
-                                    className="flex flex-col items-center justify-between rounded-md border-2 border-slate-700 bg-slate-900 p-4 hover:bg-slate-800 hover:text-white peer-data-[state=checked]:border-hfp-teal peer-data-[state=checked]:text-hfp-teal [&:has([data-state=checked])]:border-hfp-teal"
-                                >
-                                    <Moon className="mb-3 h-6 w-6" />
-                                    Clinical Dark
-                                </Label>
-                            </div>
-                            <div>
-                                <RadioGroupItem value="system" id="system" className="peer sr-only" />
-                                <Label
-                                    htmlFor="system"
-                                    className="flex flex-col items-center justify-between rounded-md border-2 border-slate-700 bg-slate-900 p-4 hover:bg-slate-800 hover:text-white peer-data-[state=checked]:border-hfp-teal peer-data-[state=checked]:text-hfp-teal [&:has([data-state=checked])]:border-hfp-teal"
-                                >
-                                    <Laptop className="mb-3 h-6 w-6" />
-                                    System
-                                </Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
-
                     {/* Data Export Section */}
                     <div className="space-y-4">
                         <h4 className="font-medium leading-none">Patient Data Export</h4>

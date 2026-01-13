@@ -5,6 +5,11 @@ export interface Message {
     role: Role;
     content: string;
     timestamp: number;
+    stats?: {
+        tokens?: number;
+        timeMs?: number;
+        tokensPerSec?: number;
+    };
 }
 
 export interface ChatSession {

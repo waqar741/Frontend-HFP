@@ -8,16 +8,21 @@ interface ChatState {
     currentSessionId: string | null;
     availableNodes: NodeInfo[];
     activeNodeAddress: string | null;
+    abortController: AbortController | null;
 
     // Actions
     createNewChat: () => string;
     selectSession: (sessionId: string) => void;
     addMessage: (sessionId: string, message: Message) => void;
     updateMessage: (sessionId: string, messageId: string, content: string) => void;
+    updateMessageStats: (sessionId: string, messageId: string, stats: { tokens?: number; timeMs?: number; tokensPerSec?: number }) => void;
     deleteSession: (sessionId: string) => void;
     renameSession: (sessionId: string, newTitle: string) => void;
     fetchNodes: () => Promise<void>;
     setActiveNode: (address: string) => void;
+    stopGeneration: () => void;
+    deleteMessage: (sessionId: string, messageId: string) => void;
+    editAndRegenerate: (sessionId: string, messageId: string, newContent: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -27,6 +32,7 @@ export const useChatStore = create<ChatState>()(
             currentSessionId: null,
             availableNodes: [],
             activeNodeAddress: null,
+            abortController: null,
 
             fetchNodes: async () => {
                 try {
@@ -135,6 +141,21 @@ export const useChatStore = create<ChatState>()(
                 });
             },
 
+            updateMessageStats: (sessionId, messageId, stats) => {
+                set((state) => ({
+                    sessions: state.sessions.map((s) =>
+                        s.id === sessionId
+                            ? {
+                                ...s,
+                                messages: s.messages.map((m) =>
+                                    m.id === messageId ? { ...m, stats } : m
+                                ),
+                            }
+                            : s
+                    ),
+                }));
+            },
+
             deleteSession: (sessionId) => {
                 set((state) => {
                     const newSessions = state.sessions.filter((s) => s.id !== sessionId);
@@ -157,6 +178,56 @@ export const useChatStore = create<ChatState>()(
                         s.id === sessionId ? { ...s, title: newTitle } : s
                     ),
                 }));
+            },
+
+            deleteMessage: (sessionId, messageId) => {
+                set((state) => ({
+                    sessions: state.sessions.map((s) =>
+                        s.id === sessionId
+                            ? { ...s, messages: s.messages.filter((m) => m.id !== messageId) }
+                            : s
+                    ),
+                }));
+            },
+
+            editAndRegenerate: async (sessionId, messageId, newContent) => {
+                const state = get();
+                const session = state.sessions.find((s) => s.id === sessionId);
+                if (!session) return;
+
+                // Find the message index
+                const messageIndex = session.messages.findIndex((m) => m.id === messageId);
+                if (messageIndex === -1) return;
+
+                // Update the message content
+                const updatedMessages = [...session.messages];
+                updatedMessages[messageIndex] = {
+                    ...updatedMessages[messageIndex],
+                    content: newContent,
+                };
+
+                // Truncate conversation at this point (remove all messages after this one)
+                const truncatedMessages = updatedMessages.slice(0, messageIndex + 1);
+
+                // Update session with truncated messages
+                set((state) => ({
+                    sessions: state.sessions.map((s) =>
+                        s.id === sessionId
+                            ? { ...s, messages: truncatedMessages }
+                            : s
+                    ),
+                }));
+
+                // Note: The regeneration will need to be triggered from the component
+                // that calls this, as it requires UI state (loading, etc.)
+            },
+
+            stopGeneration: () => {
+                const { abortController } = get();
+                if (abortController) {
+                    abortController.abort();
+                    set({ abortController: null });
+                }
             },
         }),
         {

@@ -1,68 +1,146 @@
 'use client';
 
-import { useChatStore } from '@/hooks/useChatStore';
-import { cn } from '@/lib/utils';
 import { useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { useChatStore } from '@/hooks/useChatStore';
+import { ChatMessage } from './ChatMessage';
+import { sendChatMessage } from '@/lib/api-client';
+import { v4 as uuidv4 } from 'uuid';
 
 export function ChatArea() {
-    const { currentSessionId, sessions } = useChatStore();
+    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes } = useChatStore();
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
     const currentSession = sessions.find((s) => s.id === currentSessionId);
     const messages = currentSession?.messages || [];
-    const scrollRef = useRef<HTMLDivElement>(null);
 
+    // Auto-scroll to bottom
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    if (!currentSessionId || messages.length === 0) {
-        return null; // Interface wrapper handles empty state
-    }
+    const handleEdit = async (messageId: string, newContent: string) => {
+        if (!currentSessionId) return;
+
+        // Edit and truncate
+        await editAndRegenerate(currentSessionId, messageId, newContent);
+
+        // Now trigger a regeneration
+        const assistantMessageId = uuidv4();
+        addMessage(currentSessionId, {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now()
+        });
+
+        try {
+            let fullContent = '';
+            const controller = new AbortController();
+            useChatStore.setState({ abortController: controller });
+
+            await sendChatMessage(
+                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages as any,
+                activeNodeAddress,
+                (chunk) => {
+                    fullContent += chunk;
+                    updateMessage(currentSessionId, assistantMessageId, fullContent);
+                },
+                controller.signal
+            );
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log('Generation stopped');
+            } else {
+                console.error('Failed to regenerate', error);
+            }
+        } finally {
+            useChatStore.setState({ abortController: null });
+        }
+    };
+
+    const handleRegenerate = async (messageId: string) => {
+        if (!currentSessionId) return;
+
+        // Find the message index and remove it
+        const session = sessions.find(s => s.id === currentSessionId);
+        if (!session) return;
+
+        const messageIndex = session.messages.findIndex(m => m.id === messageId);
+        if (messageIndex === -1 || session.messages[messageIndex].role !== 'assistant') return;
+
+        // Delete the existing assistant message
+        deleteMessage(currentSessionId, messageId);
+
+        // Create a new assistant message
+        const newAssistantId = uuidv4();
+        addMessage(currentSessionId, {
+            id: newAssistantId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now()
+        });
+
+        try {
+            let fullContent = '';
+            const controller = new AbortController();
+            useChatStore.setState({ abortController: controller });
+
+            await sendChatMessage(
+                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.slice(0, messageIndex) as any,
+                activeNodeAddress,
+                (chunk) => {
+                    fullContent += chunk;
+                    updateMessage(currentSessionId, newAssistantId, fullContent);
+                },
+                controller.signal
+            );
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log('Generation stopped');
+            } else {
+                console.error('Failed to regenerate', error);
+            }
+        } finally {
+            useChatStore.setState({ abortController: null });
+        }
+    };
+
+    const handleCopy = (content: string) => {
+        // Optionally show a toast notification
+        console.log('Copied to clipboard');
+    };
+
+    const handleDelete = (messageId: string) => {
+        if (!currentSessionId) return;
+        deleteMessage(currentSessionId, messageId);
+    };
 
     return (
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-transparent">
-            <div className="mx-auto max-w-3xl space-y-6">
-                {messages.map((message) => {
-                    const isUser = message.role === 'user';
-                    return (
-                        <div
+        <div className="flex-1 overflow-y-auto">
+            {messages.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+                    <h2 className="text-2xl font-semibold mb-2 text-foreground">Welcome to HealthFirstPriority</h2>
+                    <p className="text-muted-foreground">
+                        Upload your health records or ask any medical question to get started.
+                    </p>
+                </div>
+            ) : (
+                <div className="pb-32">
+                    {messages.map((message, index) => (
+                        <ChatMessage
                             key={message.id}
-                            className={cn(
-                                'flex w-full',
-                                isUser ? 'justify-end' : 'justify-start'
-                            )}
-                        >
-                            <div
-                                className={cn(
-                                    'relative max-w-[85%] rounded-2xl px-5 py-4 text-sm md:text-base shadow-md transition-all',
-                                    isUser
-                                        ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-none border border-blue-500/20'
-                                        : 'bg-card text-card-foreground rounded-bl-none border border-border'
-                                )}
-                            >
-                                {isUser ? (
-                                    <p className="whitespace-pre-wrap leading-relaxed font-sans">{message.content}</p>
-                                ) : (
-                                    <div className="prose prose-sm prose-invert max-w-none leading-relaxed dark:prose-p:text-card-foreground dark:prose-headings:text-foreground prose-code:text-primary">
-                                        <ReactMarkdown>{message.content}</ReactMarkdown>
-                                    </div>
-                                )}
-
-                                {/* Timestamp */}
-                                <div className={cn(
-                                    "text-[10px] mt-2 select-none font-medium",
-                                    isUser ? "text-right text-primary/60" : "text-left text-muted-foreground"
-                                )}>
-                                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-                <div ref={scrollRef} />
-            </div>
+                            message={message}
+                            isLast={index === messages.length - 1}
+                            modelName={message.role === 'assistant' ? availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model' : undefined}
+                            onEdit={message.role === 'user' ? (newContent) => handleEdit(message.id, newContent) : undefined}
+                            onRegenerate={message.role === 'assistant' && index === messages.length - 1 ? () => handleRegenerate(message.id) : undefined}
+                            onCopy={handleCopy}
+                            onDelete={() => handleDelete(message.id)}
+                        />
+                    ))}
+                    <div ref={messagesEndRef} />
+                </div>
+            )}
         </div>
     );
 }

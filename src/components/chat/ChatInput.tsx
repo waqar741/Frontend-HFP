@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, KeyboardEvent, useRef, useEffect } from 'react';
-import { Paperclip, ArrowUp } from 'lucide-react';
+import { Paperclip, ArrowUp, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChatStore } from '@/hooks/useChatStore';
 import { NodeSelector } from './NodeSelector';
@@ -12,7 +12,7 @@ import { sendChatMessage } from '@/lib/api-client';
 export function ChatInput() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress } = useChatStore();
+    const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration } = useChatStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize textarea
@@ -54,28 +54,42 @@ export function ChatInput() {
             timestamp: Date.now()
         });
 
-        try {
-            // 3. Send to API and Stream Response
-            let fullContent = '';
+        // 3. Send to API and Stream Response
+        let fullContent = '';
 
-            await sendChatMessage(
-                [...useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [], { role: 'user', content: userMessageContent }] as any, // Construct history if needed, or api-client handles it? 
-                // Wait, api-client expects just the new message array? Or full history?
-                // Usually full history. I'll simplify and just send context if needed, but for now sendChatMessage expects Message[].
-                // Let's grab the session messages from store + the new user message.
+        try {
+            // 4. Create Abort Controller
+            const controller = new AbortController();
+            useChatStore.setState({ abortController: controller });
+
+            // 5. Stream messages
+            const stats = await sendChatMessage(
+                [...useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [], { role: 'user', content: userMessageContent }] as any,
                 activeNodeAddress,
                 (chunk) => {
                     fullContent += chunk;
                     updateMessage(activeSessionId!, assistantMessageId, fullContent);
-                }
+                },
+                controller.signal // Pass abort signal
             );
 
+            // Update message with stats if available
+            if (stats) {
+                useChatStore.getState().updateMessageStats(activeSessionId, assistantMessageId, stats);
+            }
+
         } catch (error) {
-            console.error("Failed to send message", error);
-            // Optionally update message to show error
-            updateMessage(activeSessionId, assistantMessageId, "Error: Failed to get response from the node.");
+            // Check if aborted
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log('Generation stopped by user');
+                updateMessage(activeSessionId, assistantMessageId, fullContent + '\n\n_[Generation stopped]_');
+            } else {
+                console.error("Failed to send message", error);
+                updateMessage(activeSessionId, assistantMessageId, "Error: Failed to get response from the node.");
+            }
         } finally {
             setIsLoading(false);
+            useChatStore.setState({ abortController: null });
         }
     };
 
@@ -122,20 +136,29 @@ export function ChatInput() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Button
-                                onClick={handleSend}
-                                disabled={!input.trim() || isLoading}
-                                className={cn(
-                                    "h-10 w-10 rounded-full bg-blue-600 text-white shadow-lg transition-all hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center p-0"
-                                )}
-                                title="Send message"
-                            >
-                                {isLoading ? (
-                                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                ) : (
+                            {isLoading ? (
+                                <Button
+                                    onClick={() => {
+                                        stopGeneration();
+                                        setIsLoading(false);
+                                    }}
+                                    className="h-10 w-10 rounded-full bg-rose-600 text-white shadow-lg transition-all hover:bg-rose-500 flex items-center justify-center p-0"
+                                    title="Stop generation"
+                                >
+                                    <Square className="h-5 w-5" />
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={handleSend}
+                                    disabled={!input.trim()}
+                                    className={cn(
+                                        "h-10 w-10 rounded-full bg-blue-600 text-white shadow-lg transition-all hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center p-0"
+                                    )}
+                                    title="Send message"
+                                >
                                     <ArrowUp className="h-5 w-5" />
-                                )}
-                            </Button>
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
