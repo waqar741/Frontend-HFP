@@ -32,25 +32,32 @@ export async function sendChatMessage(messages: Message[], targetNode: string | 
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
+            buffer += decoder.decode(value, { stream: true });
 
-            // Handle potentially multiple JSON objects in one chunk
-            // NOTE: The proxy returns a raw stream from the backend.
-            // If the backend returns SSE or raw text, we simply pass it through.
-            // Assuming the backend returns the raw text content of the LLM stream directly for now.
-            // If it returns OpenAI-style SSE, we would need to parse "data: {...}" lines.
+            // Process complete SSE messages
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
-            // For this specific backend proxy implementation (which returns response.body directly),
-            // let's assume we just need to append the chunks if it's raw text, 
-            // OR if it's SSE, we need to parse.
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6); // Remove 'data: ' prefix
 
-            // HFP Backend Standard: 
-            // Returns raw text chunks or standard SSE?
-            // "Return streaming response (new Response(backendResponse.body))"
-            // Let's forward the raw chunks first. 
-            // IF invalid, we can refine parsing.
+                    if (data === '[DONE]') {
+                        continue; // Stream finished
+                    }
 
-            onChunk(chunk);
+                    try {
+                        const parsed = JSON.parse(data);
+                        const content = parsed.choices?.[0]?.delta?.content;
+                        if (content) {
+                            onChunk(content);
+                        }
+                    } catch (e) {
+                        // Skip malformed JSON
+                        console.warn('Failed to parse SSE data:', data);
+                    }
+                }
+            }
         }
 
     } catch (error) {

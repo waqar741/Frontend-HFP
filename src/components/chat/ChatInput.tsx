@@ -90,7 +90,7 @@ export function ChatInput() {
         <div className="p-4 bg-background">
             <div className="mx-auto max-w-3xl">
                 {/* Floating Container - Dark Navy Card */}
-                <div className="relative flex flex-col rounded-3xl bg-[#0f172a] border border-slate-800 shadow-2xl transition-all focus-within:border-blue-500/30 min-h-[120px]">
+                <div className="relative flex flex-col rounded-3xl bg-card border border-slate-800 shadow-2xl transition-all focus-within:border-blue-500/30 min-h-[120px]">
 
                     {/* Top: Text Area */}
                     <div className="p-4 pb-2">
@@ -102,7 +102,7 @@ export function ChatInput() {
                             placeholder="Ask anything..."
                             disabled={isLoading}
                             rows={1}
-                            className="w-full resize-none border-none bg-transparent text-lg text-slate-200 placeholder:text-slate-500 focus:ring-0 focus:outline-none max-h-[200px] overflow-y-auto"
+                            className="w-full resize-none border-none bg-transparent text-lg text-foreground placeholder:text-muted-foreground focus:ring-0 focus:outline-none max-h-[200px] overflow-y-auto"
                         />
                     </div>
 
@@ -112,13 +112,13 @@ export function ChatInput() {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-full h-9 w-9 shrink-0"
+                                className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-full h-9 w-9 shrink-0"
                                 title="Attach file"
                             >
                                 <Paperclip className="h-5 w-5" />
                             </Button>
 
-                            <NodeSelector className="bg-slate-800/50 border-slate-700/50 text-slate-300" />
+                            <NodeSelector className="bg-secondary/50 border-border text-foreground" />
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -148,8 +148,8 @@ export function ChatInput() {
                 )}
 
                 <div className="mt-3 text-center">
-                    <p className="text-xs text-slate-500">
-                        Press <span className="font-medium text-slate-400">Enter</span> to send, <span className="font-medium text-slate-400">Shift + Enter</span> for new line
+                    <p className="text-xs text-muted-foreground">
+                        Press <span className="font-medium text-muted-foreground">Enter</span> to send, <span className="font-medium text-muted-foreground">Shift + Enter</span> for new line
                     </p>
                 </div>
             </div>

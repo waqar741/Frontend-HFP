@@ -45,8 +45,7 @@ export function NodeSelector({ className }: { className?: string }) {
                     aria-expanded={open}
                     className={cn(
                         "h-8 gap-2 rounded-full px-3 text-xs font-medium border transition-all",
-                        "bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 hover:text-white border-slate-700/50 hover:border-slate-600",
-                        open && "bg-slate-800 text-white border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]",
+                        open && "shadow-[0_0_10px_rgba(59,130,246,0.2)]",
                         className
                     )}
                 >
@@ -64,9 +63,9 @@ export function NodeSelector({ className }: { className?: string }) {
                     <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 bg-[#0f172a] border-slate-700/50 text-slate-200 shadow-2xl rounded-2xl overflow-hidden">
+            <PopoverContent className="w-[300px] p-0 bg-popover border-border text-popover-foreground shadow-2xl rounded-2xl overflow-hidden">
                 <Command className="bg-transparent">
-                    <CommandInput placeholder="Search nodes..." className="text-white placeholder:text-slate-500 border-b border-slate-800" />
+                    <CommandInput placeholder="Search nodes..." className="text-foreground placeholder:text-muted-foreground border-b border-border" />
                     <CommandList className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                         {isScanning ? (
                             <div className="py-8 text-center text-sm text-slate-400 animate-pulse flex flex-col items-center gap-3">
