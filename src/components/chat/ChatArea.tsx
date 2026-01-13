@@ -7,7 +7,7 @@ import { sendChatMessage } from '@/lib/api-client';
 import { v4 as uuidv4 } from 'uuid';
 
 export function ChatArea() {
-    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes } = useChatStore();
+    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount } = useChatStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const currentSession = sessions.find((s) => s.id === currentSessionId);
@@ -21,57 +21,22 @@ export function ChatArea() {
     const handleEdit = async (messageId: string, newContent: string) => {
         if (!currentSessionId) return;
 
-        // Edit and truncate
-        await editAndRegenerate(currentSessionId, messageId, newContent);
-
-        // Now trigger a regeneration
-        const assistantMessageId = uuidv4();
-        addMessage(currentSessionId, {
-            id: assistantMessageId,
-            role: 'assistant',
-            content: '',
-            timestamp: Date.now()
-        });
-
-        try {
-            let fullContent = '';
-            const controller = new AbortController();
-            useChatStore.setState({ abortController: controller });
-
-            await sendChatMessage(
-                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages as any,
-                activeNodeAddress,
-                (chunk) => {
-                    fullContent += chunk;
-                    updateMessage(currentSessionId, assistantMessageId, fullContent);
-                },
-                controller.signal
-            );
-        } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-                console.log('Generation stopped');
-            } else {
-                console.error('Failed to regenerate', error);
-            }
-        } finally {
-            useChatStore.setState({ abortController: null });
-        }
-    };
-
-    const handleRegenerate = async (messageId: string) => {
-        if (!currentSessionId) return;
-
-        // Find the message index and remove it
+        // Get current message to preserve edit count
         const session = sessions.find(s => s.id === currentSessionId);
         if (!session) return;
 
-        const messageIndex = session.messages.findIndex(m => m.id === messageId);
-        if (messageIndex === -1 || session.messages[messageIndex].role !== 'assistant') return;
+        const userMessage = session.messages.find(m => m.id === messageId);
+        if (!userMessage) return;
 
-        // Delete the existing assistant message
-        deleteMessage(currentSessionId, messageId);
+        const currentEditCount = userMessage.editCount || 0;
 
-        // Create a new assistant message
+        // Edit and truncate conversation
+        await editAndRegenerate(currentSessionId, messageId, newContent);
+
+        // Update edit count on the edited message
+        incrementEditCount(currentSessionId, messageId);
+
+        // Now trigger a regeneration - create new AI response
         const newAssistantId = uuidv4();
         addMessage(currentSessionId, {
             id: newAssistantId,
@@ -85,8 +50,11 @@ export function ChatArea() {
             const controller = new AbortController();
             useChatStore.setState({ abortController: controller });
 
-            await sendChatMessage(
-                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.slice(0, messageIndex) as any,
+            const stats = await sendChatMessage(
+                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.map(m => ({
+                    role: m.role,
+                    content: m.content
+                })) as any,
                 activeNodeAddress,
                 (chunk) => {
                     fullContent += chunk;
@@ -94,6 +62,71 @@ export function ChatArea() {
                 },
                 controller.signal
             );
+
+            // Update stats after streaming completes
+            if (stats) {
+                useChatStore.getState().updateMessageStats(currentSessionId, newAssistantId, stats);
+            }
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log('Generation stopped');
+            } else {
+                console.error('Failed to send message', error);
+                updateMessage(currentSessionId, newAssistantId, 'Error: Failed to get response from the node.');
+            }
+        } finally {
+            useChatStore.setState({ abortController: null });
+        }
+    };
+
+    const handleRegenerate = async (messageId: string) => {
+        if (!currentSessionId) return;
+
+        // Find the AI message to preserve its regeneration count
+        const session = sessions.find(s => s.id === currentSessionId);
+        if (!session) return;
+
+        const messageIndex = session.messages.findIndex(m => m.id === messageId);
+        if (messageIndex === -1 || session.messages[messageIndex].role !== 'assistant') return;
+
+        const oldMessage = session.messages[messageIndex];
+        const currentCount = oldMessage.regenerationCount || 0;
+
+        // Delete the existing assistant message
+        deleteMessage(currentSessionId, messageId);
+
+        // Create a new assistant message with incremented count
+        const newAssistantId = uuidv4();
+        addMessage(currentSessionId, {
+            id: newAssistantId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            regenerationCount: currentCount + 1 // Preserve and increment
+        });
+
+        try {
+            let fullContent = '';
+            const controller = new AbortController();
+            useChatStore.setState({ abortController: controller });
+
+            const stats = await sendChatMessage(
+                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.slice(0, messageIndex).map(m => ({
+                    role: m.role,
+                    content: m.content
+                })) as any,
+                activeNodeAddress,
+                (chunk) => {
+                    fullContent += chunk;
+                    updateMessage(currentSessionId, newAssistantId, fullContent);
+                },
+                controller.signal
+            );
+
+            // Update stats after streaming completes
+            if (stats) {
+                useChatStore.getState().updateMessageStats(currentSessionId, newAssistantId, stats);
+            }
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
                 console.log('Generation stopped');
@@ -126,18 +159,21 @@ export function ChatArea() {
                 </div>
             ) : (
                 <div className="pb-32">
-                    {messages.map((message, index) => (
-                        <ChatMessage
-                            key={message.id}
-                            message={message}
-                            isLast={index === messages.length - 1}
-                            modelName={message.role === 'assistant' ? availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model' : undefined}
-                            onEdit={message.role === 'user' ? (newContent) => handleEdit(message.id, newContent) : undefined}
-                            onRegenerate={message.role === 'assistant' && index === messages.length - 1 ? () => handleRegenerate(message.id) : undefined}
-                            onCopy={handleCopy}
-                            onDelete={() => handleDelete(message.id)}
-                        />
-                    ))}
+                    {/* Centered container with max width */}
+                    <div className="max-w-4xl mx-auto">
+                        {messages.map((message, index) => (
+                            <ChatMessage
+                                key={message.id}
+                                message={message}
+                                isLast={index === messages.length - 1}
+                                modelName={message.role === 'assistant' ? availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model' : undefined}
+                                onEdit={message.role === 'user' ? (newContent) => handleEdit(message.id, newContent) : undefined}
+                                onRegenerate={message.role === 'assistant' && index === messages.length - 1 ? () => handleRegenerate(message.id) : undefined}
+                                onCopy={handleCopy}
+                                onDelete={() => handleDelete(message.id)}
+                            />
+                        ))}
+                    </div>
                     <div ref={messagesEndRef} />
                 </div>
             )}

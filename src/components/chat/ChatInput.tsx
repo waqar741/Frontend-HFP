@@ -64,7 +64,10 @@ export function ChatInput() {
 
             // 5. Stream messages
             const stats = await sendChatMessage(
-                [...useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [], { role: 'user', content: userMessageContent }] as any,
+                [...useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [], { role: 'user', content: userMessageContent }].map(m => ({
+                    role: m.role,
+                    content: m.content
+                })) as any,
                 activeNodeAddress,
                 (chunk) => {
                     fullContent += chunk;

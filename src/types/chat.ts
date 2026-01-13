@@ -10,6 +10,8 @@ export interface Message {
         timeMs?: number;
         tokensPerSec?: number;
     };
+    regenerationCount?: number; // For AI messages
+    editCount?: number; // For user messages
 }
 
 export interface ChatSession {

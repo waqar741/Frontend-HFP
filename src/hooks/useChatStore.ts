@@ -16,6 +16,8 @@ interface ChatState {
     addMessage: (sessionId: string, message: Message) => void;
     updateMessage: (sessionId: string, messageId: string, content: string) => void;
     updateMessageStats: (sessionId: string, messageId: string, stats: { tokens?: number; timeMs?: number; tokensPerSec?: number }) => void;
+    incrementRegenerationCount: (sessionId: string, messageId: string) => void;
+    incrementEditCount: (sessionId: string, messageId: string) => void;
     deleteSession: (sessionId: string) => void;
     renameSession: (sessionId: string, newTitle: string) => void;
     fetchNodes: () => Promise<void>;
@@ -176,6 +178,40 @@ export const useChatStore = create<ChatState>()(
                 set((state) => ({
                     sessions: state.sessions.map((s) =>
                         s.id === sessionId ? { ...s, title: newTitle } : s
+                    ),
+                }));
+            },
+
+            incrementRegenerationCount: (sessionId, messageId) => {
+                set((state) => ({
+                    sessions: state.sessions.map((s) =>
+                        s.id === sessionId
+                            ? {
+                                ...s,
+                                messages: s.messages.map((m) =>
+                                    m.id === messageId
+                                        ? { ...m, regenerationCount: (m.regenerationCount || 0) + 1 }
+                                        : m
+                                ),
+                            }
+                            : s
+                    ),
+                }));
+            },
+
+            incrementEditCount: (sessionId, messageId) => {
+                set((state) => ({
+                    sessions: state.sessions.map((s) =>
+                        s.id === sessionId
+                            ? {
+                                ...s,
+                                messages: s.messages.map((m) =>
+                                    m.id === messageId
+                                        ? { ...m, editCount: (m.editCount || 0) + 1 }
+                                        : m
+                                ),
+                            }
+                            : s
                     ),
                 }));
             },
