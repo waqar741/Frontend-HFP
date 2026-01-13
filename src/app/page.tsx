@@ -1,6 +1,5 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { ChatArea } from '@/components/chat/ChatArea';
-import { ChatInput } from '@/components/chat/ChatInput';
+import { ChatInterface } from '@/components/chat/ChatInterface';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 
 export default function Home() {
@@ -10,11 +9,8 @@ export default function Home() {
         {/* Header with Node Selector */}
         <ChatHeader />
 
-        {/* Chat Area - Takes available space */}
-        <ChatArea />
-
-        {/* Input Area - Fixed at bottom */}
-        <ChatInput />
+        {/* Chat Interface (Handles Logic for Centering) */}
+        <ChatInterface />
       </div>
     </AppShell>
   );

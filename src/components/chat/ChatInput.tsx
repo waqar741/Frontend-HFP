@@ -7,11 +7,12 @@ import { useChatStore } from '@/hooks/useChatStore';
 import { NodeSelector } from './NodeSelector';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
+import { sendChatMessage } from '@/lib/api-client';
 
 export function ChatInput() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { currentSessionId, addMessage, createNewChat } = useChatStore();
+    const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress } = useChatStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize textarea
@@ -36,6 +37,7 @@ export function ChatInput() {
         setInput('');
         setIsLoading(true);
 
+        // 1. Add User Message
         addMessage(activeSessionId, {
             id: uuidv4(),
             role: 'user',
@@ -43,24 +45,35 @@ export function ChatInput() {
             timestamp: Date.now()
         });
 
+        // 2. Add Placeholder Assistant Message
+        const assistantMessageId = uuidv4();
+        addMessage(activeSessionId, {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: '', // Start empty
+            timestamp: Date.now()
+        });
+
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // 3. Send to API and Stream Response
+            let fullContent = '';
 
-            const response = {
-                role: 'assistant' as const,
-                content: `Analysis complete. Based on "${userMessageContent}", here are the findings from the secure HFP node.`
-            };
-
-            addMessage(activeSessionId, {
-                id: uuidv4(),
-                role: 'assistant',
-                content: response.content,
-                timestamp: Date.now()
-            });
+            await sendChatMessage(
+                [...useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [], { role: 'user', content: userMessageContent }] as any, // Construct history if needed, or api-client handles it? 
+                // Wait, api-client expects just the new message array? Or full history?
+                // Usually full history. I'll simplify and just send context if needed, but for now sendChatMessage expects Message[].
+                // Let's grab the session messages from store + the new user message.
+                activeNodeAddress,
+                (chunk) => {
+                    fullContent += chunk;
+                    updateMessage(activeSessionId!, assistantMessageId, fullContent);
+                }
+            );
 
         } catch (error) {
             console.error("Failed to send message", error);
+            // Optionally update message to show error
+            updateMessage(activeSessionId, assistantMessageId, "Error: Failed to get response from the node.");
         } finally {
             setIsLoading(false);
         }

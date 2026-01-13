@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ChevronsUpDown, Cpu, Server, Activity, PlusCircle } from 'lucide-react';
+import { Check, ChevronsUpDown, Activity, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,57 +11,30 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
-    CommandSeparator,
 } from '@/components/ui/command';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { useChatStore } from '@/hooks/useChatStore';
 
-const nodes = [
-    {
-        value: 'hfp-diagnostic-v1',
-        label: 'HFP-Diagnostic-v1',
-        status: 'online',
-        type: 'core',
-    },
-    {
-        value: 'local-backup',
-        label: 'Local Backup',
-        status: 'offline',
-        type: 'local',
-    },
-    {
-        value: 'cloud-v2',
-        label: 'Cloud v2',
-        status: 'online',
-        type: 'cloud',
-    },
-    {
-        value: 'research-beta',
-        label: 'Research Beta',
-        status: 'busy',
-        type: 'cloud',
-    },
-];
-
-// ... imports
 export function NodeSelector({ className }: { className?: string }) {
     const [open, setOpen] = React.useState(false);
-    const [selectedNode, setSelectedNode] = React.useState('hfp-diagnostic-v1');
+    const { availableNodes, activeNodeAddress, fetchNodes, setActiveNode } = useChatStore();
     const [isScanning, setIsScanning] = React.useState(false);
 
-    // Simulate scanning when opening or typing
+    // Initial scan on mount
     React.useEffect(() => {
-        if (open) {
+        const scan = async () => {
             setIsScanning(true);
-            const timer = setTimeout(() => setIsScanning(false), 800);
-            return () => clearTimeout(timer);
-        }
-    }, [open]);
+            await fetchNodes();
+            setIsScanning(false);
+        };
+        scan();
+    }, [fetchNodes]);
 
-    const selectedNodeData = nodes.find((node) => node.value === selectedNode);
+    const activeNode = availableNodes.find((node) => node.address === activeNodeAddress);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -71,56 +44,69 @@ export function NodeSelector({ className }: { className?: string }) {
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "h-8 gap-2 rounded-full bg-muted/50 px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border",
+                        "h-8 gap-2 rounded-full px-3 text-xs font-medium border transition-all",
+                        "bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 hover:text-white border-slate-700/50 hover:border-slate-600",
+                        open && "bg-slate-800 text-white border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]",
                         className
                     )}
                 >
+                    {/* Status Dot with Glow */}
                     <div className={cn(
-                        "h-1.5 w-1.5 rounded-full",
-                        selectedNodeData?.status === 'online' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" :
-                            selectedNodeData?.status === 'busy' ? "bg-amber-500" : "bg-slate-500"
+                        "h-1.5 w-1.5 rounded-full transition-all duration-500",
+                        activeNode
+                            ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                            : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
                     )} />
-                    <span className="truncate max-w-[150px]">{selectedNodeData?.label}</span>
+
+                    <span className="truncate max-w-[150px] font-sans">
+                        {activeNode ? activeNode.given_name : "Select Node"}
+                    </span>
                     <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[250px] p-0 bg-popover border-border text-popover-foreground">
+            <PopoverContent className="w-[300px] p-0 bg-[#0f172a] border-slate-700/50 text-slate-200 shadow-2xl rounded-2xl overflow-hidden">
                 <Command className="bg-transparent">
-                    <CommandInput placeholder="Search nodes..." className="text-foreground placeholder:text-muted-foreground" />
-                    <CommandList>
+                    <CommandInput placeholder="Search nodes..." className="text-white placeholder:text-slate-500 border-b border-slate-800" />
+                    <CommandList className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                         {isScanning ? (
-                            <div className="py-6 text-center text-sm text-muted-foreground animate-pulse flex flex-col items-center gap-2">
-                                <Activity className="h-4 w-4 animate-spin" />
-                                <span>Scanning network...</span>
+                            <div className="py-8 text-center text-sm text-slate-400 animate-pulse flex flex-col items-center gap-3">
+                                <Activity className="h-5 w-5 animate-spin text-blue-500" />
+                                <span className="text-xs font-medium">Scanning secure network...</span>
+                            </div>
+                        ) : availableNodes.length === 0 ? (
+                            <div className="py-8 text-center text-sm text-slate-400 flex flex-col items-center gap-3">
+                                <AlertCircle className="h-5 w-5 text-amber-500" />
+                                <span className="text-xs">No active nodes online.</span>
                             </div>
                         ) : (
                             <>
-                                <CommandEmpty>No node found.</CommandEmpty>
-                                <CommandGroup heading="Available Nodes" className="text-muted-foreground">
-                                    {nodes.map((node) => (
+                                <CommandEmpty className="py-6 text-center text-sm text-slate-500">No node found.</CommandEmpty>
+                                <CommandGroup heading="Available Processing Nodes" className="text-slate-500 font-medium px-2 py-2">
+                                    {availableNodes.map((node) => (
                                         <CommandItem
-                                            key={node.value}
-                                            value={node.label}
-                                            onSelect={(currentValue) => {
-                                                const found = nodes.find(n => n.label.toLowerCase() === currentValue.toLowerCase()) || node;
-                                                setSelectedNode(found.value);
+                                            key={node.address}
+                                            value={`${node.given_name} ${node.model_name}`}
+                                            onSelect={() => {
+                                                setActiveNode(node.address);
                                                 setOpen(false);
                                             }}
-                                            className="text-foreground aria-selected:bg-accent aria-selected:text-accent-foreground cursor-pointer"
+                                            className="text-slate-200 aria-selected:bg-blue-600/20 aria-selected:text-blue-100 cursor-pointer rounded-lg my-1 transition-colors group"
                                         >
-                                            <div className={cn(
-                                                "mr-2 h-2 w-2 rounded-full",
-                                                node.status === 'online' ? "bg-green-500" :
-                                                    node.status === 'busy' ? "bg-amber-500" : "bg-slate-500"
-                                            )} />
-                                            {node.type === 'local' ? <Cpu className="mr-2 h-4 w-4 opacity-70" /> : <Server className="mr-2 h-4 w-4 opacity-70" />}
-                                            {node.label}
-                                            <Check
-                                                className={cn(
-                                                    "ml-auto h-4 w-4",
-                                                    selectedNode === node.value ? "opacity-100 text-hfp-teal" : "opacity-0"
-                                                )}
-                                            />
+                                            <div className="flex items-center w-full py-1">
+                                                <div className={cn(
+                                                    "mr-3 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                                                )} />
+                                                <div className="flex flex-col flex-1 min-w-0 gap-0.5">
+                                                    <span className="font-semibold text-sm truncate group-aria-selected:text-blue-200">{node.given_name}</span>
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono truncate group-aria-selected:text-blue-300/70">{node.model_name} • {node.address}</span>
+                                                </div>
+                                                <Check
+                                                    className={cn(
+                                                        "ml-auto h-4 w-4 shrink-0 transition-opacity",
+                                                        activeNodeAddress === node.address ? "opacity-100 text-blue-400" : "opacity-0"
+                                                    )}
+                                                />
+                                            </div>
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>

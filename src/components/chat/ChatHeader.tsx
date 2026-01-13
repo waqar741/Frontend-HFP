@@ -12,7 +12,7 @@ export function ChatHeader() {
     const currentSession = sessions.find(s => s.id === currentSessionId);
 
     return (
-        <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/10">
+        <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between px-4 backdrop-blur-md bg-[#0f172a]/80 border-b border-white/5">
             <div className="flex items-center gap-4">
                 {/* Sidebar Toggle */}
                 <Button

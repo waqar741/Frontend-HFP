@@ -13,3 +13,11 @@ export interface ChatSession {
     messages: Message[];
     timestamp: number;
 }
+
+export interface NodeInfo {
+    given_name: string;
+    address: string;
+    status: string;
+    model_name: string;
+    model_status: string;
+}
