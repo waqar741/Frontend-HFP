@@ -9,21 +9,27 @@ export async function POST(req: Request) {
         const baseUrl = process.env.HFP_API_BASE_URL;
         const apiKey = process.env.HFP_API_KEY;
 
-        if (!baseUrl || !apiKey) {
-            console.error('Missing API configuration');
+        if (!baseUrl) {
+            console.error('Missing API base URL');
             return NextResponse.json(
                 { error: 'Server configuration error' },
                 { status: 500 }
             );
         }
 
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            'X-Target-Node': targetNode || 'default-node',
+        };
+
+        // Only add Authorization if API key is provided
+        if (apiKey && apiKey !== '[YOUR_KEY_HERE]') {
+            headers['Authorization'] = `Bearer ${apiKey}`;
+        }
+
         const response = await fetch(`${baseUrl}/v1/chat/completions`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'X-Target-Node': targetNode || 'default-node', // Fallback or strict requirement
-            },
+            headers,
             body: JSON.stringify({
                 model: model || 'Qwen2.5-1.5B-Instruct', // Default model if not provided
                 messages,
