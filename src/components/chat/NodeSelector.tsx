@@ -24,6 +24,9 @@ export function NodeSelector({ className }: { className?: string }) {
     const { availableNodes, activeNodeAddress, fetchNodes, setActiveNode } = useChatStore();
     const [isScanning, setIsScanning] = React.useState(false);
 
+    // Rotating model name state for Auto mode
+    const [rotatedModelIndex, setRotatedModelIndex] = React.useState(0);
+
     // Initial scan on mount
     React.useEffect(() => {
         const scan = async () => {
@@ -34,7 +37,22 @@ export function NodeSelector({ className }: { className?: string }) {
         scan();
     }, [fetchNodes]);
 
+    // Rotation effect
+    React.useEffect(() => {
+        if (!activeNodeAddress && availableNodes.length > 0) {
+            const interval = setInterval(() => {
+                setRotatedModelIndex((prev) => (prev + 1) % availableNodes.length);
+            }, 10000); // 10 seconds
+            return () => clearInterval(interval);
+        }
+    }, [activeNodeAddress, availableNodes.length]);
+
     const activeNode = availableNodes.find((node) => node.address === activeNodeAddress);
+
+    // Determine display name
+    const displayName = activeNode
+        ? activeNode.given_name
+        : (availableNodes.length > 0 ? availableNodes[rotatedModelIndex].model_name : "Auto / Dynamic");
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -58,7 +76,7 @@ export function NodeSelector({ className }: { className?: string }) {
                     )} />
 
                     <span className="truncate max-w-[150px] font-sans">
-                        {activeNode ? activeNode.given_name : "Select Node"}
+                        {displayName}
                     </span>
                     <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
@@ -86,7 +104,12 @@ export function NodeSelector({ className }: { className?: string }) {
                                             key={node.address}
                                             value={`${node.given_name} ${node.model_name}`}
                                             onSelect={() => {
-                                                setActiveNode(node.address);
+                                                // Toggle logic: If clicking the active node, switch to Auto (empty string)
+                                                if (activeNodeAddress === node.address) {
+                                                    setActiveNode("");
+                                                } else {
+                                                    setActiveNode(node.address);
+                                                }
                                                 setOpen(false);
                                             }}
                                             className="text-slate-200 aria-selected:bg-blue-600/20 aria-selected:text-blue-100 cursor-pointer rounded-lg my-1 transition-colors group"
@@ -97,12 +120,14 @@ export function NodeSelector({ className }: { className?: string }) {
                                                 )} />
                                                 <div className="flex flex-col flex-1 min-w-0 gap-0.5">
                                                     <span className="font-semibold text-sm truncate group-aria-selected:text-blue-200">{node.given_name}</span>
-                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono truncate group-aria-selected:text-blue-300/70">{node.model_name} • {node.address}</span>
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono truncate group-aria-selected:text-blue-300/70">{node.model_status} • {node.model_name}</span>
                                                 </div>
                                                 <Check
                                                     className={cn(
                                                         "ml-auto h-4 w-4 shrink-0 transition-opacity",
-                                                        activeNodeAddress === node.address ? "opacity-100 text-blue-400" : "opacity-0"
+                                                        (activeNodeAddress === node.address || (!activeNodeAddress && node.model_name === displayName))
+                                                            ? "opacity-100 text-blue-400"
+                                                            : "opacity-0"
                                                     )}
                                                 />
                                             </div>
