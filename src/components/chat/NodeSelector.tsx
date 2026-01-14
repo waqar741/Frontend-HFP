@@ -22,10 +22,8 @@ import { useChatStore } from '@/hooks/useChatStore';
 export function NodeSelector({ className }: { className?: string }) {
     const [open, setOpen] = React.useState(false);
     const { availableNodes, activeNodeAddress, fetchNodes, setActiveNode } = useChatStore();
+    const [searchTerm, setSearchTerm] = React.useState('');
     const [isScanning, setIsScanning] = React.useState(false);
-
-    // Rotating model name state for Auto mode
-    const [rotatedModelIndex, setRotatedModelIndex] = React.useState(0);
 
     // Initial scan on mount
     React.useEffect(() => {
@@ -37,107 +35,170 @@ export function NodeSelector({ className }: { className?: string }) {
         scan();
     }, [fetchNodes]);
 
-    // Rotation effect
-    React.useEffect(() => {
-        if (!activeNodeAddress && availableNodes.length > 0) {
-            const interval = setInterval(() => {
-                setRotatedModelIndex((prev) => (prev + 1) % availableNodes.length);
-            }, 10000); // 10 seconds
-            return () => clearInterval(interval);
+    // Format helper to remove .gguf
+    const formatModelName = (name: string | null | undefined): string => {
+        if (!name) return 'Loading...';
+        return name.replace(/\.gguf$/i, '');
+    };
+
+    // Helper to extract size (e.g., 7B, 1.5B)
+    const itemSize = (modelName: string | undefined): string => {
+        if (!modelName) return '';
+        const parts = modelName.split('-');
+        const lastPart = parts[parts.length - 1];
+
+        if (lastPart.includes('B')) {
+            return lastPart;
         }
-    }, [activeNodeAddress, availableNodes.length]);
+
+        const sizeMatch = modelName.match(/(\d+B|\d+\.\d+B)/i);
+        return sizeMatch ? sizeMatch[1] : '';
+    };
+
+    const ignoredNodes = ['digital-ocean-server', 'server2-ritesh'];
+
+    const sortedNodes = React.useMemo(() => {
+        return availableNodes
+            .filter((n) => !ignoredNodes.includes(n.given_name))
+            .filter((n) => {
+                const nodeStatus = (n.status || '').toLowerCase();
+                const modelStatus = (n.model_status || '').toLowerCase();
+                const modelName = (n.model_name || '');
+
+                const isNodeUp = nodeStatus === 'online' || nodeStatus === 'healthy';
+                const isModelUp = modelStatus === 'online' || modelStatus === 'healthy';
+                const hasValidModel = modelName !== 'N/A' && modelName !== '';
+
+                return isNodeUp && isModelUp && hasValidModel;
+            })
+            .filter((n) => {
+                const term = searchTerm.toLowerCase();
+                return n.given_name.toLowerCase().includes(term) ||
+                    (n.model_name || '').toLowerCase().includes(term);
+            })
+            .sort((a, b) => a.given_name.localeCompare(b.given_name));
+    }, [availableNodes, searchTerm]);
 
     const activeNode = availableNodes.find((node) => node.address === activeNodeAddress);
-
-    // Determine display name
-    const displayName = activeNode
-        ? activeNode.given_name
-        : (availableNodes.length > 0 ? availableNodes[rotatedModelIndex].model_name : "Auto / Dynamic");
+    const displayModelName = activeNode?.model_name || "Auto / Dynamic";
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={(val) => {
+            setOpen(val);
+            if (val) {
+                setSearchTerm('');
+                fetchNodes();
+            }
+        }}>
             <PopoverTrigger asChild>
                 <Button
                     variant="ghost"
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "h-8 gap-2 rounded-full px-3 text-xs font-medium border transition-all",
-                        open && "shadow-[0_0_10px_rgba(59,130,246,0.2)]",
+                        "h-8 gap-2 rounded-md px-3 text-sm font-medium transition-colors max-w-[200px] sm:max-w-[400px]",
+                        activeNodeAddress
+                            ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25"
+                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                         className
                     )}
                 >
-                    {/* Status Dot with Glow */}
-                    <div className={cn(
-                        "h-1.5 w-1.5 rounded-full transition-all duration-500",
-                        activeNode
-                            ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
-                            : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
-                    )} />
+                    {activeNodeAddress ? (
+                        <Activity className="h-4 w-4 shrink-0" />
+                    ) : (
+                        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-70" />
+                    )}
 
-                    <span className="truncate max-w-[150px] font-sans">
-                        {displayName}
+                    <span className="truncate block max-w-[150px] sm:max-w-[350px] text-left">
+                        {formatModelName(displayModelName)}
                     </span>
-                    <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 bg-popover border-border text-popover-foreground shadow-2xl rounded-2xl overflow-hidden">
-                <Command className="bg-transparent">
-                    <CommandInput placeholder="Search nodes..." className="text-foreground placeholder:text-muted-foreground border-b border-border" />
-                    <CommandList className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                        {isScanning ? (
+            <PopoverContent
+                className="w-[calc(100vw-32px)] max-w-[400px] sm:w-[400px] p-0 shadow-lg rounded-lg overflow-hidden"
+                align="end"
+            >
+                <div className="flex flex-col">
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30 border-b flex justify-between items-center">
+                        <span>Select Processing Node</span>
+                        <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] tabular-nums">
+                            {sortedNodes.length} Online
+                        </span>
+                    </div>
+
+                    <div className="p-2 border-b">
+                        <Command className="border rounded-md">
+                            <CommandInput
+                                placeholder="Search nodes..."
+                                value={searchTerm}
+                                onValueChange={setSearchTerm}
+                                className="h-9 text-sm"
+                            />
+                        </Command>
+                    </div>
+
+                    <div className="max-h-[300px] overflow-y-auto p-1">
+                        {isScanning && sortedNodes.length === 0 ? (
                             <div className="py-8 text-center text-sm text-slate-400 animate-pulse flex flex-col items-center gap-3">
                                 <Activity className="h-5 w-5 animate-spin text-blue-500" />
-                                <span className="text-xs font-medium">Scanning secure network...</span>
+                                <span className="text-xs font-medium">Scanning network...</span>
                             </div>
-                        ) : availableNodes.length === 0 ? (
-                            <div className="py-8 text-center text-sm text-slate-400 flex flex-col items-center gap-3">
-                                <AlertCircle className="h-5 w-5 text-amber-500" />
-                                <span className="text-xs">No active nodes online.</span>
+                        ) : sortedNodes.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                No healthy nodes found.
                             </div>
                         ) : (
-                            <>
-                                <CommandEmpty className="py-6 text-center text-sm text-slate-500">No node found.</CommandEmpty>
-                                <CommandGroup heading="Available Processing Nodes" className="text-slate-500 font-medium px-2 py-2">
-                                    {availableNodes.map((node) => (
-                                        <CommandItem
-                                            key={node.address}
-                                            value={`${node.given_name} ${node.model_name}`}
-                                            onSelect={() => {
-                                                // Toggle logic: If clicking the active node, switch to Auto (empty string)
-                                                if (activeNodeAddress === node.address) {
-                                                    setActiveNode("");
-                                                } else {
-                                                    setActiveNode(node.address);
-                                                }
-                                                setOpen(false);
-                                            }}
-                                            className="text-slate-200 aria-selected:bg-blue-600/20 aria-selected:text-blue-100 cursor-pointer rounded-lg my-1 transition-colors group"
-                                        >
-                                            <div className="flex items-center w-full py-1">
-                                                <div className={cn(
-                                                    "mr-3 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                                                )} />
-                                                <div className="flex flex-col flex-1 min-w-0 gap-0.5">
-                                                    <span className="font-semibold text-sm truncate group-aria-selected:text-blue-200">{node.given_name}</span>
-                                                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono truncate group-aria-selected:text-blue-300/70">{node.model_status} • {node.model_name}</span>
-                                                </div>
-                                                <Check
-                                                    className={cn(
-                                                        "ml-auto h-4 w-4 shrink-0 transition-opacity",
-                                                        (activeNodeAddress === node.address || (!activeNodeAddress && node.model_name === displayName))
-                                                            ? "opacity-100 text-blue-400"
-                                                            : "opacity-0"
-                                                    )}
-                                                />
+                            sortedNodes.map((node) => {
+                                const isSelected = activeNodeAddress === node.address;
+                                const formattedModelName = formatModelName(node.model_name);
+
+                                return (
+                                    <button
+                                        key={node.address}
+                                        type="button"
+                                        className={cn(
+                                            "flex w-full items-center justify-between rounded-md px-2 py-2.5 text-sm transition-colors text-left group",
+                                            isSelected
+                                                ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                                : "hover:bg-muted text-foreground"
+                                        )}
+                                        onClick={() => {
+                                            if (activeNodeAddress === node.address) {
+                                                setActiveNode(""); // Toggle off
+                                            } else {
+                                                setActiveNode(node.address);
+                                            }
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
+                                            <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                                                <span className="font-medium truncate block">
+                                                    {node.given_name}
+                                                </span>
+                                                {formattedModelName && (
+                                                    <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                                                        <span className="text-xs bg-muted/50 px-1.5 py-0.5 rounded truncate max-w-full">
+                                                            {formattedModelName}
+                                                        </span>
+                                                        <span className="text-[10px] text-muted-foreground opacity-70 shrink-0">
+                                                            {itemSize(formattedModelName)}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            </>
+                                        </div>
+
+                                        {isSelected && (
+                                            <Check className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 ml-2" />
+                                        )}
+                                    </button>
+                                );
+                            })
                         )}
-                    </CommandList>
-                </Command>
+                    </div>
+                </div>
             </PopoverContent>
         </Popover>
     );

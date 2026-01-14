@@ -163,14 +163,14 @@ export function ChatArea() {
     return (
         <div className="flex-1 overflow-y-auto">
             {messages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+                <div className="flex h-full flex-col items-center justify-center p-4 text-center">
                     <h2 className="text-2xl font-semibold mb-2 text-foreground">Welcome to HealthFirstPriority</h2>
                     <p className="text-muted-foreground">
                         Upload your health records or ask any medical question to get started.
                     </p>
                 </div>
             ) : (
-                <div className="pb-32">
+                <div className="pb-4">
                     {/* Centered container with max width */}
                     <div className="max-w-4xl mx-auto">
                         {messages.map((message, index) => (
