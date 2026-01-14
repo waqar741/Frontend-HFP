@@ -84,6 +84,7 @@ export function ChatInput() {
                 useChatStore.getState().updateMessageStats(activeSessionId, assistantMessageId, stats);
                 if (stats.model) {
                     useChatStore.getState().updateMessageModel(activeSessionId, assistantMessageId, stats.model);
+                    useChatStore.getState().setLastUsedModel(stats.model);
                 }
             }
 
@@ -179,7 +180,7 @@ export function ChatInput() {
                     </div>
                 )}
 
-                <div className="mt-3 text-center">
+                <div className="mt-3 text-center hidden sm:block">
                     <p className="text-xs text-muted-foreground">
                         Press <span className="font-medium text-muted-foreground">Enter</span> to send, <span className="font-medium text-muted-foreground">Shift + Enter</span> for new line
                     </p>

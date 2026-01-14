@@ -26,6 +26,8 @@ interface ChatState {
     stopGeneration: () => void;
     deleteMessage: (sessionId: string, messageId: string) => void;
     editAndRegenerate: (sessionId: string, messageId: string, newContent: string) => Promise<void>;
+    lastUsedModel: string | null;
+    setLastUsedModel: (model: string | null) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -36,6 +38,11 @@ export const useChatStore = create<ChatState>()(
             availableNodes: [],
             activeNodeAddress: null,
             abortController: null,
+            lastUsedModel: null,
+
+            setLastUsedModel: (model) => {
+                set({ lastUsedModel: model });
+            },
 
             fetchNodes: async () => {
                 try {

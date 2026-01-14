@@ -22,19 +22,26 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function NodeSelector({ className }: { className?: string }) {
     const [open, setOpen] = React.useState(false);
-    const { availableNodes, activeNodeAddress, fetchNodes, setActiveNode } = useChatStore();
+    const { availableNodes, activeNodeAddress, fetchNodes, setActiveNode, lastUsedModel } = useChatStore();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isScanning, setIsScanning] = React.useState(false);
 
-    // Initial scan on mount
+    // Initial scan on mount and poll every 10s
     React.useEffect(() => {
         const scan = async () => {
-            setIsScanning(true);
+            // Only set scanning UI on initial load if empty
+            if (availableNodes.length === 0) setIsScanning(true);
             await fetchNodes();
             setIsScanning(false);
         };
         scan();
-    }, [fetchNodes]);
+
+        const interval = setInterval(() => {
+            fetchNodes();
+        }, 10000); // Poll every 10 seconds
+
+        return () => clearInterval(interval);
+    }, [fetchNodes, availableNodes.length]);
 
     // Format helper to remove .gguf
     const formatModelName = (name: string | null | undefined): string => {
@@ -94,7 +101,22 @@ export function NodeSelector({ className }: { className?: string }) {
     }, [availableNodes, searchTerm]);
 
     const activeNode = availableNodes.find((node) => node.address === activeNodeAddress);
-    const displayModelName = activeNode?.model_name || "Auto / Dynamic";
+
+    // Determine display model name
+    let displayModelName = "Auto / Dynamic";
+    if (activeNodeAddress && activeNode) {
+        displayModelName = activeNode.model_name;
+    } else if (!activeNodeAddress) {
+        // Auto Mode Logic:
+        // 1. If we have a healthy node in the list, use that as the likely target
+        // 2. Fallback to lastUsedModel if no nodes currently healthy but we have history
+        if (sortedNodes.length > 0) {
+            displayModelName = sortedNodes[0].model_name;
+        } else if (lastUsedModel) {
+            displayModelName = lastUsedModel;
+        }
+    }
+
     const isAutoMode = !activeNodeAddress;
 
     return (
@@ -174,7 +196,7 @@ export function NodeSelector({ className }: { className?: string }) {
                         </Command>
                     </div>
 
-                    <ScrollArea className="h-[250px]">
+                    <ScrollArea className="h-auto max-h-[250px]">
                         <div className="p-1 space-y-0.5">
                             {isScanning && sortedNodes.length === 0 ? (
                                 <div className="py-8 text-center text-sm text-slate-400 animate-pulse flex flex-col items-center gap-3">

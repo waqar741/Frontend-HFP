@@ -27,12 +27,21 @@ export async function POST(req: Request) {
             headers['Authorization'] = `Bearer ${apiKey}`;
         }
 
+        // System prompt to restrict domain to medical topics
+        const systemMessage = {
+            role: 'system',
+            content: `You are a specialized medical AI assistant for HealthFirstPriority. Your sole purpose is to provide accurate, professional, and helpful information related to health, medicine, medical conditions, treatments, and wellness.
+If a user asks a question that is NOT related to medical or health topics, you must politely decline to answer, stating that you are an AI assistant specialized in medical information only.
+Do not engage in general conversation, creative writing, coding, or any other non-medical tasks.
+Always prioritize patient safety and recommend seeing a healthcare professional for specific medical advice.`
+        };
+
         const response = await fetch(`${baseUrl}/v1/chat/completions`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
-                model: model || 'Qwen2.5-1.5B-Instruct', // Default model if not provided
-                messages,
+                model: model || 'Qwen2.5-1.5B-Instruct',
+                messages: [systemMessage, ...messages],
                 stream: true,
             }),
         });
