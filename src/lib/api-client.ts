@@ -8,8 +8,9 @@ export async function sendChatMessage(
     targetNode: string | null,
     onChunk: (chunk: string) => void,
     signal?: AbortSignal
-): Promise<{ tokens?: number; timeMs?: number; tokensPerSec?: number } | undefined> {
-    let stats: { tokens?: number; timeMs?: number; tokensPerSec?: number } | undefined;
+): Promise<{ tokens?: number; timeMs?: number; tokensPerSec?: number; model?: string } | undefined> {
+    let stats: { tokens?: number; timeMs?: number; tokensPerSec?: number; model?: string } | undefined;
+    let detectedModel: string | undefined;
 
     try {
         const response = await fetch('/api/chat', {
@@ -63,12 +64,18 @@ export async function sendChatMessage(
                             onChunk(content);
                         }
 
+                        // Extract model name if present
+                        if (parsed.model && !detectedModel) {
+                            detectedModel = parsed.model;
+                        }
+
                         // Extract timing stats from final chunk
                         if (parsed.timings) {
                             stats = {
                                 tokens: parsed.timings.predicted_n,
                                 timeMs: parsed.timings.predicted_ms,
-                                tokensPerSec: parsed.timings.predicted_per_second
+                                tokensPerSec: parsed.timings.predicted_per_second,
+                                model: detectedModel
                             };
                         }
                     } catch (e) {

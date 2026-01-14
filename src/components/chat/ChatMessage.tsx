@@ -130,7 +130,7 @@ export function ChatMessage({
                             <div className="flex flex-wrap items-center gap-2">
                                 {/* Compact Model Badge */}
                                 <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/50 rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:bg-secondary/80 transition-colors">
-                                    <span className="font-medium text-primary/80">{modelName || 'AI Model'}</span>
+                                    <span className="font-bold text-primary">{message.model || modelName || message.modelName || 'Unknown Model'}</span>
 
                                     {message.stats && (
                                         <>

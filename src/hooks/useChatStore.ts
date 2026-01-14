@@ -16,6 +16,7 @@ interface ChatState {
     addMessage: (sessionId: string, message: Message) => void;
     updateMessage: (sessionId: string, messageId: string, content: string) => void;
     updateMessageStats: (sessionId: string, messageId: string, stats: { tokens?: number; timeMs?: number; tokensPerSec?: number }) => void;
+    updateMessageModel: (sessionId: string, messageId: string, model: string) => void;
     incrementRegenerationCount: (sessionId: string, messageId: string) => void;
     incrementEditCount: (sessionId: string, messageId: string) => void;
     deleteSession: (sessionId: string) => void;
@@ -151,6 +152,21 @@ export const useChatStore = create<ChatState>()(
                                 ...s,
                                 messages: s.messages.map((m) =>
                                     m.id === messageId ? { ...m, stats } : m
+                                ),
+                            }
+                            : s
+                    ),
+                }));
+            },
+
+            updateMessageModel: (sessionId, messageId, model) => {
+                set((state) => ({
+                    sessions: state.sessions.map((s) =>
+                        s.id === sessionId
+                            ? {
+                                ...s,
+                                messages: s.messages.map((m) =>
+                                    m.id === messageId ? { ...m, model } : m
                                 ),
                             }
                             : s

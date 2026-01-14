@@ -69,6 +69,9 @@ export function ChatArea() {
             // Update stats after streaming completes
             if (stats) {
                 useChatStore.getState().updateMessageStats(currentSessionId, newAssistantId, stats);
+                if (stats.model) {
+                    useChatStore.getState().updateMessageModel(currentSessionId, newAssistantId, stats.model);
+                }
             }
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
@@ -132,6 +135,9 @@ export function ChatArea() {
             // Update stats after streaming completes
             if (stats) {
                 useChatStore.getState().updateMessageStats(currentSessionId, newAssistantId, stats);
+                if (stats.model) {
+                    useChatStore.getState().updateMessageModel(currentSessionId, newAssistantId, stats.model);
+                }
             }
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {

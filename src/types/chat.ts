@@ -11,6 +11,7 @@ export interface Message {
         tokensPerSec?: number;
     };
     modelName?: string;
+    model?: string; // Specific model used for this message
     regenerationCount?: number; // For AI messages
     editCount?: number; // For user messages
 }

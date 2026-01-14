@@ -82,6 +82,9 @@ export function ChatInput() {
             // Update message with stats if available
             if (stats) {
                 useChatStore.getState().updateMessageStats(activeSessionId, assistantMessageId, stats);
+                if (stats.model) {
+                    useChatStore.getState().updateMessageModel(activeSessionId, assistantMessageId, stats.model);
+                }
             }
 
         } catch (error) {
