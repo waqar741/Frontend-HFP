@@ -10,6 +10,7 @@ export interface Message {
         timeMs?: number;
         tokensPerSec?: number;
     };
+    modelName?: string;
     regenerationCount?: number; // For AI messages
     editCount?: number; // For user messages
 }

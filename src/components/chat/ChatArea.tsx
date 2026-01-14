@@ -38,11 +38,14 @@ export function ChatArea() {
 
         // Now trigger a regeneration - create new AI response
         const newAssistantId = uuidv4();
+        const currentModelName = useChatStore.getState().availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model';
+
         addMessage(currentSessionId, {
             id: newAssistantId,
             role: 'assistant',
             content: '',
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            modelName: currentModelName
         });
 
         try {
@@ -97,12 +100,15 @@ export function ChatArea() {
 
         // Create a new assistant message with incremented count
         const newAssistantId = uuidv4();
+        const currentModelName = useChatStore.getState().availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model';
+
         addMessage(currentSessionId, {
             id: newAssistantId,
             role: 'assistant',
             content: '',
             timestamp: Date.now(),
-            regenerationCount: currentCount + 1 // Preserve and increment
+            regenerationCount: currentCount + 1, // Preserve and increment
+            modelName: currentModelName
         });
 
         try {
@@ -166,7 +172,7 @@ export function ChatArea() {
                                 key={message.id}
                                 message={message}
                                 isLast={index === messages.length - 1}
-                                modelName={message.role === 'assistant' ? availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model' : undefined}
+                                modelName={message.modelName}
                                 onEdit={message.role === 'user' ? (newContent) => handleEdit(message.id, newContent) : undefined}
                                 onRegenerate={message.role === 'assistant' && index === messages.length - 1 ? () => handleRegenerate(message.id) : undefined}
                                 onCopy={handleCopy}

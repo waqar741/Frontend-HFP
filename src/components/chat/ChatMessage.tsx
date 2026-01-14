@@ -121,38 +121,42 @@ export function ChatMessage({
                 ) : (
                     /* AI Message - Full Width Left Aligned */
                     <div className="w-full max-w-[800px]">
-                        <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed dark:prose-p:text-foreground dark:prose-headings:text-foreground prose-code:text-primary">
+                        <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed dark:prose-p:text-foreground dark:prose-headings:text-foreground prose-code:text-primary overflow-x-auto w-full">
                             <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div>
 
-                        {/* Metadata Footer - AI Messages */}
-                        <div className="flex items-center justify-between w-full mt-3 gap-3">
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {modelName && (
-                                    <div className="bg-muted px-2 py-1 rounded text-muted-foreground flex items-center gap-2 max-w-[200px]">
-                                        <span className="truncate font-mono text-[10px]">{modelName}</span>
-                                    </div>
-                                )}
-                                {message.stats && (
-                                    <>
-                                        {message.stats.tokens !== undefined && (
-                                            <span className="text-[10px] font-mono">{message.stats.tokens} tokens</span>
-                                        )}
-                                        {message.stats.timeMs !== undefined && (
-                                            <span className="text-[10px] font-mono">{(message.stats.timeMs / 1000).toFixed(2)}s</span>
-                                        )}
-                                        {message.stats.tokensPerSec !== undefined && (
-                                            <span className="text-[10px] font-mono">{message.stats.tokensPerSec.toFixed(2)} tokens/s</span>
-                                        )}
-                                    </>
-                                )}
+                        {/* Metadata Footer - AI Messages - Compact & Styled */}
+                        <div className="flex items-center justify-between w-full mt-2 gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Compact Model Badge */}
+                                <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/50 rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:bg-secondary/80 transition-colors">
+                                    <span className="font-medium text-primary/80">{modelName || 'AI Model'}</span>
+
+                                    {message.stats && (
+                                        <>
+                                            <span className="w-0.5 h-3 bg-border/80" />
+                                            <div className="flex items-center gap-1.5 text-[10px] font-mono opacity-80">
+                                                {message.stats.timeMs !== undefined && (
+                                                    <span>{(message.stats.timeMs / 1000).toFixed(1)}s</span>
+                                                )}
+                                                {message.stats.tokens !== undefined && (
+                                                    <span>{message.stats.tokens}t</span>
+                                                )}
+                                                {message.stats.tokensPerSec !== undefined && (
+                                                    <span>{message.stats.tokensPerSec.toFixed(0)} t/s</span>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex gap-1">
+
+                            <div className="flex gap-1 shrink-0">
                                 <Button
                                     size="icon"
                                     variant="ghost"
                                     onClick={handleCopy}
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-full"
                                     title="Copy response"
                                 >
                                     <Copy className="h-3.5 w-3.5" />
@@ -163,7 +167,7 @@ export function ChatMessage({
                                         variant="ghost"
                                         onClick={onRegenerate}
                                         disabled={(message.regenerationCount || 0) >= 2}
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                                         title={(message.regenerationCount || 0) >= 2 ? "Max regenerations reached (2/2)" : "Regenerate response"}
                                     >
                                         <RotateCw className="h-3.5 w-3.5" />

@@ -47,11 +47,14 @@ export function ChatInput() {
 
         // 2. Add Placeholder Assistant Message
         const assistantMessageId = uuidv4();
+        const currentModelName = useChatStore.getState().availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model';
+
         addMessage(activeSessionId, {
             id: assistantMessageId,
             role: 'assistant',
             content: '', // Start empty
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            modelName: currentModelName
         });
 
         // 3. Send to API and Stream Response
