@@ -51,12 +51,6 @@ export const useChatStore = create<ChatState>()(
                     );
 
                     set({ availableNodes: validNodes });
-
-                    // If no active node selected, or current selection is invalid, select first available
-                    const state = get();
-                    if (validNodes.length > 0 && !state.activeNodeAddress) {
-                        set({ activeNodeAddress: validNodes[0].address });
-                    }
                 } catch (error) {
                     console.error('Node discovery failed:', error);
                     set({ availableNodes: [] });

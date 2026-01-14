@@ -131,9 +131,9 @@ export function ChatMessage({
 
                         {/* Metadata Footer - AI Messages - Compact & Styled */}
                         <div className="flex flex-col w-full mt-2 gap-2 select-none">
-                            {/* Row 1: Metrics & Model - Styled as a dark pill with wrapping */}
+                            {/* Row 1: Metrics & Model - Styled as minimal text */}
                             <div className="flex items-center w-full max-w-full">
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-[#1e293b] border border-border/10 rounded-lg px-2.5 py-1 shadow-sm w-fit">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-0.5 w-fit">
                                     {/* Model Name */}
                                     <span className="font-semibold text-xs text-blue-100/90 leading-tight shrink-1 break-words">
                                         {(message.model || modelName || message.modelName || 'Unknown Model').replace(/\.gguf$/i, '')}
