@@ -73,10 +73,13 @@ export function Sidebar() {
     }
 
     return (
-        <div className="flex h-full flex-col p-4 bg-sidebar">
+        <div className="flex h-full flex-col p-4 bg-sidebar border-r border-border">
             {/* Header */}
             <div className="flex items-center gap-2 mb-8 px-2">
-                <span className="font-bold text-lg text-sidebar-foreground tracking-wide">HealthFirstPriority</span>
+                <span className="font-bold text-lg tracking-wide">
+                    <span className="text-primary">Health</span>
+                    <span className="text-sidebar-foreground">FirstPriority</span>
+                </span>
             </div>
 
             {/* New Chat Button */}

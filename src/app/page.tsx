@@ -5,7 +5,7 @@ import { ChatHeader } from '@/components/chat/ChatHeader';
 export default function Home() {
   return (
     <AppShell>
-      <div className="flex h-full flex-col bg-hfp-navy">
+      <div className="flex h-full flex-col bg-background">
         {/* Header with Node Selector */}
         <ChatHeader />
 

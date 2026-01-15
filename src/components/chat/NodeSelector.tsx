@@ -126,7 +126,7 @@ export function NodeSelector({ className }: { className?: string }) {
                     role="combobox"
                     aria-expanded={open}
                     className={cn(
-                        "h-8 gap-2 rounded-md px-3 text-sm font-medium transition-colors max-w-[200px] sm:max-w-[400px]",
+                        "h-8 gap-2 rounded-md px-3 text-sm font-medium transition-colors w-full sm:w-auto max-w-[200px] sm:max-w-fit md:max-w-fit",
                         activeNodeAddress
                             ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25"
                             : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
@@ -139,21 +139,21 @@ export function NodeSelector({ className }: { className?: string }) {
                         <Sparkles className="h-4 w-4 shrink-0 opacity-70" />
                     )}
 
-                    <span className="truncate block max-w-[150px] sm:max-w-[350px] text-left">
+                    <span className="truncate block max-w-[150px] sm:max-w-md md:max-w-lg text-left">
                         {formatModelName(displayModelName)}
                     </span>
                     <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent
-                className="w-[calc(100vw-16px)] max-w-[350px] sm:w-[350px] p-0 shadow-2xl rounded-xl overflow-hidden bg-[#020817] border border-blue-900/50"
+                className="w-[calc(100vw-16px)] max-w-[350px] sm:w-[350px] p-0 shadow-2xl rounded-xl overflow-hidden bg-popover border border-border/50"
                 align="start"
                 side="top"
                 alignOffset={-60}
                 sideOffset={8}
             >
                 <div className="flex flex-col">
-                    <div className="px-3 py-2 text-[10px] font-bold text-blue-100/70 uppercase tracking-wider bg-white/5 border-b border-white/5 flex justify-between items-center">
+                    <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/30 border-b border-border flex justify-between items-center">
                         <span>Select Processing Node</span>
                         <div className="flex items-center gap-2">
                             <Button
@@ -168,26 +168,25 @@ export function NodeSelector({ className }: { className?: string }) {
                                 className={cn(
                                     "h-6 px-2.5 text-[10px] font-bold gap-1.5 transition-all rounded shadow-sm",
                                     isAutoMode
-                                        ? "bg-white text-slate-950 hover:bg-white/90"
-                                        : "bg-blue-950/50 text-blue-400 hover:bg-blue-900/50 hover:text-blue-300 border border-blue-800/50"
-                                )}
-                            >
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                        : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border"
+                                )}>
                                 <Sparkles className="h-3 w-3" />
                                 AUTO
                             </Button>
-                            <span className="bg-blue-950 text-blue-400 border border-blue-800/50 px-1.5 py-0.5 rounded text-[10px] tabular-nums font-mono">
+                            <span className="bg-secondary/50 text-foreground border border-border px-1.5 py-0.5 rounded text-[10px] tabular-nums font-mono">
                                 {sortedNodes.length} ONLINE
                             </span>
                         </div>
                     </div>
 
-                    <div className="p-2 border-b border-white/5">
+                    <div className="p-2 border-b border-border">
                         <Command className="bg-transparent border-none">
                             <CommandInput
                                 placeholder="Search nodes..."
                                 value={searchTerm}
                                 onValueChange={setSearchTerm}
-                                className="h-9 text-xs bg-slate-900/50 border border-blue-500/30 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-slate-500 text-slate-200"
+                                className="h-9 text-xs bg-muted/50 border border-input rounded-md focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground text-foreground"
                             />
                         </Command>
                     </div>
@@ -222,8 +221,8 @@ export function NodeSelector({ className }: { className?: string }) {
                                             className={cn(
                                                 "flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors text-left group",
                                                 isSelected
-                                                    ? "bg-blue-900/20 text-blue-100 border border-blue-800/50"
-                                                    : "hover:bg-white/5 text-slate-300 border border-transparent",
+                                                    ? "bg-primary/10 text-primary border border-primary/20"
+                                                    : "hover:bg-accent text-muted-foreground border border-transparent",
                                                 isDisabled && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
                                             )}
                                             onClick={() => {
@@ -243,7 +242,7 @@ export function NodeSelector({ className }: { className?: string }) {
                                                 </div>
 
                                                 <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                                                    <span className={cn("font-medium truncate block leading-tight", isSelected ? "text-white" : "", isDisabled && "text-slate-500")}>
+                                                    <span className={cn("font-medium truncate block leading-tight", isSelected ? "text-primary" : "", isDisabled && "text-muted-foreground")}>
                                                         {node.given_name} {isDisabled && "(Backup Only)"}
                                                     </span>
                                                     {formattedModelName && (
@@ -257,7 +256,7 @@ export function NodeSelector({ className }: { className?: string }) {
                                             </div>
 
                                             {isSelected && (
-                                                <Check className="h-4 w-4 shrink-0 text-blue-400 ml-2" />
+                                                <Check className="h-4 w-4 shrink-0 text-primary ml-2" />
                                             )}
                                         </button>
                                     );
@@ -267,6 +266,6 @@ export function NodeSelector({ className }: { className?: string }) {
                     </ScrollArea>
                 </div>
             </PopoverContent>
-        </Popover>
+        </Popover >
     );
 }

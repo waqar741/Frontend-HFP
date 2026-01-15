@@ -7,6 +7,7 @@ import { useUIStore } from '@/hooks/useUIStore';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from '@/components/layout/Sidebar';
+
 import { useState } from 'react';
 
 export function ChatHeader() {
@@ -16,7 +17,7 @@ export function ChatHeader() {
     const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
     return (
-        <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between px-4 backdrop-blur-md bg-background/80 border-b border-white/5">
+        <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between px-4 backdrop-blur-md bg-background/80 border-b border-border/40">
             <div className="flex items-center gap-4">
                 {/* Desktop Sidebar Toggle */}
                 <Button

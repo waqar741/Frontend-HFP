@@ -113,7 +113,7 @@ export function ChatInput() {
         <div className="p-4 bg-background">
             <div className="mx-auto max-w-3xl">
                 {/* Floating Container - Dark Navy Card */}
-                <div className="relative flex flex-col rounded-3xl bg-card border border-slate-800 shadow-2xl transition-all focus-within:border-blue-500/30 min-h-[120px]">
+                <div className="relative flex flex-col rounded-3xl bg-card border border-border shadow-2xl transition-all focus-within:border-ring/30 min-h-[120px]">
 
                     {/* Top: Text Area */}
                     <div className="p-4 pb-2">
@@ -131,7 +131,7 @@ export function ChatInput() {
 
                     {/* Bottom: Toolbar */}
                     <div className="flex items-center justify-between px-3 pb-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -141,7 +141,7 @@ export function ChatInput() {
                                 <Paperclip className="h-5 w-5" />
                             </Button>
 
-                            <NodeSelector className="bg-secondary/50 border-border text-foreground" />
+                            <NodeSelector className="bg-secondary/50 border-border text-foreground min-w-0 shrink flex-1 max-w-fit" />
                         </div>
 
                         <div className="flex items-center gap-2">

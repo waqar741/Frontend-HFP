@@ -135,21 +135,21 @@ export function ChatMessage({
                             <div className="flex items-center w-full max-w-full">
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-0.5 w-fit">
                                     {/* Model Name */}
-                                    <span className="font-semibold text-xs text-blue-100/90 leading-tight shrink-1 break-words">
+                                    <span className="font-semibold text-xs text-foreground/80 leading-tight shrink-1 break-words">
                                         {(message.model || modelName || message.modelName || 'Unknown Model').replace(/\.gguf$/i, '')}
                                     </span>
 
                                     {message.stats && (
                                         <>
-                                            {/* Divider - Hidden on very small screens if wrapped, or just a separator */}
-                                            <div className="hidden sm:block h-3.5 w-px bg-white/10 shrink-0" />
+                                            {/* Divider */}
+                                            <div className="hidden sm:block h-3.5 w-px bg-border shrink-0" />
 
-                                            {/* Metrics - Allow wrapping */}
-                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-400 font-medium">
+                                            {/* Metrics */}
+                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground font-medium">
                                                 {/* Tokens */}
                                                 {message.stats.tokens !== undefined && (
                                                     <div className="flex items-center gap-1.5" title="Tokens Generated">
-                                                        <span className="text-[10px] opacity-70 bg-white/5 p-0.5 rounded">ab</span>
+                                                        <span className="text-[10px] opacity-100 bg-muted text-muted-foreground px-1 py-0.5 rounded border border-border/50">ab</span>
                                                         <span>{message.stats.tokens} tokens</span>
                                                     </div>
                                                 )}
