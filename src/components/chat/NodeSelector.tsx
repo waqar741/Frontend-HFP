@@ -1,16 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ChevronsUpDown, Activity, AlertCircle, Sparkles } from 'lucide-react';
+import { Check, ChevronsUpDown, Activity, Sparkles, Monitor, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
     Command,
-    CommandEmpty,
-    CommandGroup,
     CommandInput,
-    CommandItem,
-    CommandList,
 } from '@/components/ui/command';
 import {
     Popover,
@@ -153,11 +149,14 @@ export function NodeSelector({ className }: { className?: string }) {
                 </Button>
             </PopoverTrigger>
             <PopoverContent
-                className="w-[calc(100vw-32px)] max-w-[350px] sm:w-[350px] p-0 shadow-lg rounded-lg overflow-hidden"
-                align="end"
+                className="w-[calc(100vw-16px)] max-w-[350px] sm:w-[350px] p-0 shadow-2xl rounded-xl overflow-hidden bg-[#020817] border border-blue-900/50"
+                align="start"
+                side="top"
+                alignOffset={-60}
+                sideOffset={8}
             >
                 <div className="flex flex-col">
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30 border-b flex justify-between items-center">
+                    <div className="px-3 py-2 text-[10px] font-bold text-blue-100/70 uppercase tracking-wider bg-white/5 border-b border-white/5 flex justify-between items-center">
                         <span>Select Processing Node</span>
                         <div className="flex items-center gap-2">
                             <Button
@@ -170,57 +169,58 @@ export function NodeSelector({ className }: { className?: string }) {
                                     setOpen(false);
                                 }}
                                 className={cn(
-                                    "h-5 px-2 text-[10px] font-bold gap-1 transition-all",
+                                    "h-6 px-2.5 text-[10px] font-bold gap-1.5 transition-all rounded shadow-sm",
                                     isAutoMode
-                                        ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-                                        : "hover:bg-primary/10 hover:text-primary"
+                                        ? "bg-white text-slate-950 hover:bg-white/90"
+                                        : "bg-blue-950/50 text-blue-400 hover:bg-blue-900/50 hover:text-blue-300 border border-blue-800/50"
                                 )}
                             >
                                 <Sparkles className="h-3 w-3" />
                                 AUTO
                             </Button>
-                            <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] tabular-nums">
+                            <span className="bg-blue-950 text-blue-400 border border-blue-800/50 px-1.5 py-0.5 rounded text-[10px] tabular-nums font-mono">
                                 {sortedNodes.length} ONLINE
                             </span>
                         </div>
                     </div>
 
-                    <div className="p-1 border-b">
-                        <Command className="border rounded-md">
+                    <div className="p-2 border-b border-white/5">
+                        <Command className="bg-transparent border-none">
                             <CommandInput
                                 placeholder="Search nodes..."
                                 value={searchTerm}
                                 onValueChange={setSearchTerm}
-                                className="h-7 text-xs"
+                                className="h-9 text-xs bg-slate-900/50 border border-blue-500/30 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-slate-500 text-slate-200"
                             />
                         </Command>
                     </div>
 
                     <ScrollArea className="h-auto max-h-[250px]">
-                        <div className="p-1 space-y-0.5">
+                        <div className="p-1 space-y-1">
                             {isScanning && sortedNodes.length === 0 ? (
                                 <div className="py-8 text-center text-sm text-slate-400 animate-pulse flex flex-col items-center gap-3">
                                     <Activity className="h-5 w-5 animate-spin text-blue-500" />
                                     <span className="text-xs font-medium">Scanning network...</span>
                                 </div>
                             ) : sortedNodes.length === 0 ? (
-                                <div className="p-4 text-center text-xs text-muted-foreground">
+                                <div className="p-4 text-center text-xs text-slate-500">
                                     No healthy nodes found.
                                 </div>
                             ) : (
                                 sortedNodes.map((node) => {
                                     const isSelected = activeNodeAddress === node.address;
                                     const formattedModelName = formatModelName(node.model_name);
+                                    const isLocal = node.given_name.toLowerCase().includes('local');
 
                                     return (
                                         <button
                                             key={node.address}
                                             type="button"
                                             className={cn(
-                                                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors text-left group",
+                                                "flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors text-left group",
                                                 isSelected
-                                                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                                                    : "hover:bg-muted text-foreground"
+                                                    ? "bg-blue-900/20 text-blue-100 border border-blue-800/50"
+                                                    : "hover:bg-white/5 text-slate-300 border border-transparent"
                                             )}
                                             onClick={() => {
                                                 if (activeNodeAddress !== node.address) {
@@ -231,18 +231,24 @@ export function NodeSelector({ className }: { className?: string }) {
                                             }}
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
+                                                <div className="relative shrink-0">
+                                                    {isLocal ? (
+                                                        <Monitor className={cn("h-4 w-4", isSelected ? "text-emerald-400" : "text-slate-400 group-hover:text-slate-200")} />
+                                                    ) : (
+                                                        <Server className={cn("h-4 w-4", isSelected ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200")} />
+                                                    )}
+                                                    {/* Status indicator dot over icon or next to it */}
+                                                    <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" />
+                                                </div>
+
                                                 <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                                                    <span className="font-medium truncate block leading-tight">
+                                                    <span className={cn("font-medium truncate block leading-tight", isSelected ? "text-white" : "")}>
                                                         {node.given_name}
                                                     </span>
                                                     {formattedModelName && (
                                                         <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                                                            <span className="text-xs bg-muted/50 px-1.5 py-0.5 rounded truncate max-w-full">
+                                                            <span className="text-xs opacity-60 truncate max-w-full">
                                                                 {formattedModelName}
-                                                            </span>
-                                                            <span className="text-[10px] text-muted-foreground opacity-70 shrink-0">
-                                                                {itemSize(formattedModelName)}
                                                             </span>
                                                         </div>
                                                     )}
@@ -250,7 +256,7 @@ export function NodeSelector({ className }: { className?: string }) {
                                             </div>
 
                                             {isSelected && (
-                                                <Check className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 ml-2" />
+                                                <Check className="h-4 w-4 shrink-0 text-blue-400 ml-2" />
                                             )}
                                         </button>
                                     );

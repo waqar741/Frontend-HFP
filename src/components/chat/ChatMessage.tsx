@@ -104,7 +104,7 @@ export function ChatMessage({
 
                             {/* Action Buttons - User Messages - Always Visible */}
                             {!isEditing && (
-                                <div className="flex gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <div className="flex gap-1 mt-0.5 opacity-100 transition-opacity duration-200">
                                     <Button
                                         size="icon"
                                         variant="ghost"
