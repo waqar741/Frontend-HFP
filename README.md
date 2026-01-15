@@ -9,7 +9,7 @@ A secure, modern AI chat interface built with Next.js 14+ for healthcare-related
 - **🎨 Modern UI**: Clinical design with dark mode support and glassmorphism effects
 - **📱 Responsive Design**: Mobile-first approach with adaptive layouts
 - **🎯 Node Selection**: Multi-node support for different AI conversation contexts
-- **⚙️ Customizable Settings**: Theme preferences, export options, and more
+- **⚙️ Customizable Settings**: Light/Dark/System theme preferences, export options
 - **📤 Export Functionality**: Export chat history and data
 - **♿ Accessible**: Built with accessibility best practices using Radix UI primitives
 
@@ -28,6 +28,7 @@ A secure, modern AI chat interface built with Next.js 14+ for healthcare-related
   - Scroll Area, Select, Slot
 - **[Lucide React](https://lucide.dev/)** - Beautiful icon library
 - **[tw-animate-css](https://www.npmjs.com/package/tw-animate-css)** - Animation utilities
+- **[next-themes](https://github.com/pacocoursey/next-themes)** - Theme management (Light/Dark/System)
 
 ### Utilities
 - **[class-variance-authority](https://cva.style/)** - CVA for component variants
@@ -182,18 +183,25 @@ HealthFirstPriorty/
 
 ### Color Palette
 
-The application uses a custom healthcare-focused color scheme defined in `src/app/globals.css`:
+The application features a refined dual-theme system defined in `src/app/globals.css`:
 
-- **HFP Navy** (`#0f172a`): Primary background color
-- **HFP Teal** (`#0ea5e9`): Accent color for interactive elements
-- **HFP Card** (`#1e293b`): Card and panel backgrounds
+- **Perfect White Theme** (Light Mode):
+  - **Background**: Pure white (`hsl(0 0% 100%)`)
+  - **Foreground**: Deep slate text (`hsl(222.2 84% 4.9%)`)
+  - **Primary**: HFP Teal (`hsl(199 89% 48%)`)
 
-### Dark Mode
+- **HFP Navy Theme** (Dark Mode):
+  - **Background**: Deep Navy (`hsl(222.2 47.4% 11.2%)`)
+  - **Foreground**: Light gray text (`hsl(210 40% 98%)`)
+  - **Card**: Slightly lighter navy (`hsl(224 40% 16%)`)
 
-The application supports dynamic dark mode, configured through:
-- CSS variables in `globals.css`
-- Theme hook in `src/hooks/useTheme.ts`
-- Client-side persistence using localStorage
+### Theme Management
+
+The application supports robust theme switching powered by `next-themes`:
+- **Light Mode**: Clean, high-contrast clinical white interface.
+- **Dark Mode**: Comfortable, low-light navy interface.
+- **System**: Automatically syncs with the user's operating system preference.
+- **Persistence**: Remembers user choice across sessions via localStorage.
 
 ### Tailwind Configuration
 
