@@ -105,11 +105,8 @@ export function NodeSelector({ className }: { className?: string }) {
     } else if (!activeNodeAddress) {
         // Auto Mode Logic:
         // 1. If we have a healthy node in the list, use that as the likely target
-        // 2. Fallback to lastUsedModel if no nodes currently healthy but we have history
         if (sortedNodes.length > 0) {
             displayModelName = sortedNodes[0].model_name;
-        } else if (lastUsedModel) {
-            displayModelName = lastUsedModel;
         }
     }
 
@@ -212,17 +209,26 @@ export function NodeSelector({ className }: { className?: string }) {
                                     const formattedModelName = formatModelName(node.model_name);
                                     const isLocal = node.given_name.toLowerCase().includes('local');
 
+                                    // Check if there are any remote nodes available
+                                    const hasRemoteNodes = sortedNodes.some(n => !n.given_name.toLowerCase().includes('local'));
+                                    // Disable Local Backup if remote nodes exist
+                                    const isDisabled = isLocal && hasRemoteNodes;
+
                                     return (
                                         <button
                                             key={node.address}
                                             type="button"
+                                            disabled={isDisabled}
                                             className={cn(
                                                 "flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors text-left group",
                                                 isSelected
                                                     ? "bg-blue-900/20 text-blue-100 border border-blue-800/50"
-                                                    : "hover:bg-white/5 text-slate-300 border border-transparent"
+                                                    : "hover:bg-white/5 text-slate-300 border border-transparent",
+                                                isDisabled && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
                                             )}
                                             onClick={() => {
+                                                if (isDisabled) return;
+
                                                 if (activeNodeAddress !== node.address) {
                                                     setActiveNode(node.address);
                                                 }
@@ -232,18 +238,13 @@ export function NodeSelector({ className }: { className?: string }) {
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
                                                 <div className="relative shrink-0">
-                                                    {isLocal ? (
-                                                        <Monitor className={cn("h-4 w-4", isSelected ? "text-emerald-400" : "text-slate-400 group-hover:text-slate-200")} />
-                                                    ) : (
-                                                        <Server className={cn("h-4 w-4", isSelected ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200")} />
-                                                    )}
-                                                    {/* Status indicator dot over icon or next to it */}
-                                                    <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]" />
+                                                    {/* Revert to simple dot indicator */}
+                                                    <div className={cn("h-1.5 w-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0", isDisabled ? "bg-slate-500" : "bg-emerald-500")} />
                                                 </div>
 
                                                 <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                                                    <span className={cn("font-medium truncate block leading-tight", isSelected ? "text-white" : "")}>
-                                                        {node.given_name}
+                                                    <span className={cn("font-medium truncate block leading-tight", isSelected ? "text-white" : "", isDisabled && "text-slate-500")}>
+                                                        {node.given_name} {isDisabled && "(Backup Only)"}
                                                     </span>
                                                     {formattedModelName && (
                                                         <div className="flex items-center gap-1 mt-0.5 min-w-0">

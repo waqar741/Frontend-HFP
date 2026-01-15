@@ -84,7 +84,6 @@ export function ChatInput() {
                 useChatStore.getState().updateMessageStats(activeSessionId, assistantMessageId, stats);
                 if (stats.model) {
                     useChatStore.getState().updateMessageModel(activeSessionId, assistantMessageId, stats.model);
-                    useChatStore.getState().setLastUsedModel(stats.model);
                 }
             }
 
