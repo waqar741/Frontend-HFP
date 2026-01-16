@@ -65,20 +65,25 @@ export function ChatInput() {
             const controller = new AbortController();
             useChatStore.setState({ abortController: controller });
 
-            // 5. Determine target node - restrict to local if only local nodes available
+            // 5. Determine target node - prefer remote, use local as backup
             const { availableNodes } = useChatStore.getState();
             let targetNode = activeNodeAddress;
 
             // If in auto mode (no specific node selected)
             if (!targetNode) {
-                // Check if all available nodes are local
-                const allNodesAreLocal = availableNodes.every(node =>
+                // Separate local and remote nodes
+                const remoteNodes = availableNodes.filter(node =>
+                    !node.given_name.toLowerCase().includes('local')
+                );
+                const localNodes = availableNodes.filter(node =>
                     node.given_name.toLowerCase().includes('local')
                 );
 
-                // If only local nodes exist, explicitly use the first local node
-                if (allNodesAreLocal && availableNodes.length > 0) {
-                    targetNode = availableNodes[0].address;
+                // Prefer remote nodes, use local as backup
+                if (remoteNodes.length > 0) {
+                    targetNode = remoteNodes[0].address;
+                } else if (localNodes.length > 0) {
+                    targetNode = localNodes[0].address;
                 }
             }
 

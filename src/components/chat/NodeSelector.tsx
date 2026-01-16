@@ -103,18 +103,20 @@ export function NodeSelector({ className }: { className?: string }) {
     if (activeNodeAddress && activeNode) {
         displayModelName = activeNode.model_name;
     } else if (!activeNodeAddress) {
-        // Auto Mode Logic:
-        // Check if all nodes are local
-        const allNodesAreLocal = sortedNodes.every(node =>
+        // Auto Mode Logic: Prefer remote, use local as backup
+        const remoteNodes = sortedNodes.filter(node =>
+            !node.given_name.toLowerCase().includes('local')
+        );
+        const localNodes = sortedNodes.filter(node =>
             node.given_name.toLowerCase().includes('local')
         );
 
-        if (allNodesAreLocal && sortedNodes.length > 0) {
-            // Only local models available
-            displayModelName = `${sortedNodes[0].model_name} (Local Model)`;
-        } else if (sortedNodes.length > 0) {
-            // Mixed or remote nodes available
-            displayModelName = sortedNodes[0].model_name;
+        if (remoteNodes.length > 0) {
+            // Remote models available - prefer them
+            displayModelName = remoteNodes[0].model_name;
+        } else if (localNodes.length > 0) {
+            // Only local models available - use as backup
+            displayModelName = `${localNodes[0].model_name} (Local Model)`;
         }
     }
 
