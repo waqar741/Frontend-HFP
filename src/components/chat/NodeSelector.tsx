@@ -104,8 +104,16 @@ export function NodeSelector({ className }: { className?: string }) {
         displayModelName = activeNode.model_name;
     } else if (!activeNodeAddress) {
         // Auto Mode Logic:
-        // 1. If we have a healthy node in the list, use that as the likely target
-        if (sortedNodes.length > 0) {
+        // Check if all nodes are local
+        const allNodesAreLocal = sortedNodes.every(node =>
+            node.given_name.toLowerCase().includes('local')
+        );
+
+        if (allNodesAreLocal && sortedNodes.length > 0) {
+            // Only local models available
+            displayModelName = `${sortedNodes[0].model_name} (Local Model)`;
+        } else if (sortedNodes.length > 0) {
+            // Mixed or remote nodes available
             displayModelName = sortedNodes[0].model_name;
         }
     }

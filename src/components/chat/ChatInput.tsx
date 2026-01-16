@@ -65,13 +65,30 @@ export function ChatInput() {
             const controller = new AbortController();
             useChatStore.setState({ abortController: controller });
 
-            // 5. Stream messages
+            // 5. Determine target node - restrict to local if only local nodes available
+            const { availableNodes } = useChatStore.getState();
+            let targetNode = activeNodeAddress;
+
+            // If in auto mode (no specific node selected)
+            if (!targetNode) {
+                // Check if all available nodes are local
+                const allNodesAreLocal = availableNodes.every(node =>
+                    node.given_name.toLowerCase().includes('local')
+                );
+
+                // If only local nodes exist, explicitly use the first local node
+                if (allNodesAreLocal && availableNodes.length > 0) {
+                    targetNode = availableNodes[0].address;
+                }
+            }
+
+            // 6. Stream messages
             const stats = await sendChatMessage(
                 [...useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [], { role: 'user', content: userMessageContent }].map(m => ({
                     role: m.role,
                     content: m.content
                 })) as any,
-                activeNodeAddress,
+                targetNode,
                 (chunk) => {
                     fullContent += chunk;
                     updateMessage(activeSessionId!, assistantMessageId, fullContent);
