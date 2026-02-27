@@ -1,5 +1,17 @@
 export type Role = 'user' | 'assistant' | 'system';
 
+export interface MessageVersion {
+    content: string;
+    stats?: {
+        tokens?: number;
+        timeMs?: number;
+        tokensPerSec?: number;
+    };
+    model?: string;
+    modelName?: string;
+    timestamp: number;
+}
+
 export interface Message {
     id: string;
     role: Role;
@@ -11,9 +23,11 @@ export interface Message {
         tokensPerSec?: number;
     };
     modelName?: string;
-    model?: string; // Specific model used for this message
-    regenerationCount?: number; // For AI messages
-    editCount?: number; // For user messages
+    model?: string;
+    regenerationCount?: number;
+    editCount?: number;
+    previousVersions?: MessageVersion[];
+    activeVersionIndex?: number; // which version is being viewed (undefined = latest)
 }
 
 export interface ChatSession {

@@ -54,10 +54,16 @@ export function ChatArea() {
             useChatStore.setState({ abortController: controller });
 
             const stats = await sendChatMessage(
-                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.map(m => ({
+                (useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages || []).map(m => ({
                     role: m.role,
                     content: m.content
-                })) as any,
+                })).filter(m => {
+                    if (!m.content || !m.content.trim()) return false;
+                    if (m.content.startsWith('Error:')) return false;
+                    if (m.content.includes('_[Generation stopped]_')) return false;
+                    if (m.content.trim() === 'None') return false;
+                    return true;
+                }) as any,
                 activeNodeAddress,
                 (chunk) => {
                     fullContent += chunk;
@@ -88,7 +94,6 @@ export function ChatArea() {
     const handleRegenerate = async (messageId: string) => {
         if (!currentSessionId) return;
 
-        // Find the AI message to preserve its regeneration count
         const session = sessions.find(s => s.id === currentSessionId);
         if (!session) return;
 
@@ -96,23 +101,41 @@ export function ChatArea() {
         if (messageIndex === -1 || session.messages[messageIndex].role !== 'assistant') return;
 
         const oldMessage = session.messages[messageIndex];
-        const currentCount = oldMessage.regenerationCount || 0;
 
-        // Delete the existing assistant message
-        deleteMessage(currentSessionId, messageId);
+        // Save current content as a previous version
+        const oldVersion = {
+            content: oldMessage.content,
+            stats: oldMessage.stats,
+            model: oldMessage.model,
+            modelName: oldMessage.modelName,
+            timestamp: oldMessage.timestamp,
+        };
 
-        // Create a new assistant message with incremented count
-        const newAssistantId = uuidv4();
-        const currentModelName = useChatStore.getState().availableNodes.find(n => n.address === activeNodeAddress)?.model_name || 'AI Model';
+        const previousVersions = [...(oldMessage.previousVersions || []), oldVersion];
 
-        addMessage(currentSessionId, {
-            id: newAssistantId,
-            role: 'assistant',
-            content: '',
-            timestamp: Date.now(),
-            regenerationCount: currentCount + 1, // Preserve and increment
-            modelName: currentModelName
-        });
+        // Update the message in-place: clear content, store versions, increment count
+        updateMessage(currentSessionId, messageId, '');
+        // We need a helper to set versions and clear stats on the message
+        useChatStore.setState((state) => ({
+            sessions: state.sessions.map(s => {
+                if (s.id !== currentSessionId) return s;
+                return {
+                    ...s,
+                    messages: s.messages.map(m => {
+                        if (m.id !== messageId) return m;
+                        return {
+                            ...m,
+                            content: '',
+                            stats: undefined,
+                            previousVersions,
+                            activeVersionIndex: undefined, // viewing latest
+                            regenerationCount: (m.regenerationCount || 0) + 1,
+                            timestamp: Date.now(),
+                        };
+                    })
+                };
+            })
+        }));
 
         try {
             let fullContent = '';
@@ -120,23 +143,28 @@ export function ChatArea() {
             useChatStore.setState({ abortController: controller });
 
             const stats = await sendChatMessage(
-                useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.slice(0, messageIndex).map(m => ({
+                (useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.slice(0, messageIndex) || []).map(m => ({
                     role: m.role,
                     content: m.content
-                })) as any,
+                })).filter(m => {
+                    if (!m.content || !m.content.trim()) return false;
+                    if (m.content.startsWith('Error:')) return false;
+                    if (m.content.includes('_[Generation stopped]_')) return false;
+                    if (m.content.trim() === 'None') return false;
+                    return true;
+                }) as any,
                 activeNodeAddress,
                 (chunk) => {
                     fullContent += chunk;
-                    updateMessage(currentSessionId, newAssistantId, fullContent);
+                    updateMessage(currentSessionId, messageId, fullContent);
                 },
                 controller.signal
             );
 
-            // Update stats after streaming completes
             if (stats) {
-                useChatStore.getState().updateMessageStats(currentSessionId, newAssistantId, stats);
+                useChatStore.getState().updateMessageStats(currentSessionId, messageId, stats);
                 if (stats.model) {
-                    useChatStore.getState().updateMessageModel(currentSessionId, newAssistantId, stats.model);
+                    useChatStore.getState().updateMessageModel(currentSessionId, messageId, stats.model);
                 }
             }
         } catch (error) {
@@ -161,7 +189,7 @@ export function ChatArea() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto chat-scroll-area">
             {messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center p-4 text-center">
                     <h2 className="text-2xl font-semibold mb-2 text-foreground">Welcome to HealthFirstPriority</h2>

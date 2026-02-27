@@ -166,3 +166,150 @@ nextjs-portal {
     @apply bg-background text-foreground;
   }
 }
+
+/* ============================================
+   Chat Message Animations
+   ============================================ */
+
+/* AI message slides in from left */
+@keyframes message-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateY(12px) translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+}
+
+/* User message slides in from right */
+@keyframes message-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateY(12px) translateX(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+}
+
+/* Gentle fade for metadata/stats */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Typing cursor blink */
+@keyframes cursor-blink {
+
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-message-ai {
+  animation: message-slide-in-left 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-message-user {
+  animation: message-slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* Toast: slide up, hold, then fade out */
+@keyframes toast-appear-disappear {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  75% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+}
+
+.animate-toast {
+  animation: toast-appear-disappear 2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Smooth scroll for chat area */
+.chat-scroll-area {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Smooth action button reveal - always visible on mobile, hover on desktop */
+.message-actions {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+@media (hover: hover) {
+  .message-actions {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  .group:hover .message-actions,
+  .message-actions.always-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover glow on user bubble */
+.user-bubble {
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
+}
+
+.user-bubble:hover {
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);
+}
+
+/* AI message hover highlight */
+.ai-message-container {
+  transition: background-color 0.2s ease;
+  border-radius: 0.75rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.ai-message-container:hover {
+  background-color: hsl(var(--accent) / 0.04);
+}

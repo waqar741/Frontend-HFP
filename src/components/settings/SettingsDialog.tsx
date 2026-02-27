@@ -39,9 +39,9 @@ export function SettingsDialog() {
                     <Settings className="h-5 w-5" />
                 </Button>
             </DialogTrigger>
-            <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[425px]">
+            <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Settings</DialogTitle>
+                    <DialogTitle className="text-foreground">Settings</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
                         Customize your secure workspace preferences.
                     </DialogDescription>
@@ -50,19 +50,19 @@ export function SettingsDialog() {
                 <div className="grid gap-6 py-4">
                     {/* Appearance Section */}
                     <div className="space-y-4">
-                        <h4 className="font-medium leading-none">Appearance</h4>
-                        <div className="rounded-md border border-border bg-muted p-4">
+                        <h4 className="font-medium leading-none text-foreground">Appearance</h4>
+                        <div className="rounded-lg border border-border bg-secondary/50 dark:bg-secondary/30 p-4">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="space-y-1 flex-1 min-w-0">
-                                    <p className="text-sm font-medium">Theme</p>
+                                    <p className="text-sm font-medium text-foreground">Theme</p>
                                     <p className="text-xs text-muted-foreground truncate">Select your preferred interface theme</p>
                                 </div>
                                 <div className="min-w-[140px] w-full sm:w-auto">
                                     <Select value={theme} onValueChange={setTheme}>
-                                        <SelectTrigger className="h-8 bg-background border-input w-full">
+                                        <SelectTrigger className="h-8 bg-background dark:bg-background border-border text-foreground w-full">
                                             <SelectValue placeholder="Select theme" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="bg-popover border-border text-popover-foreground">
                                             <SelectItem value="system">
                                                 <div className="flex items-center gap-2">
                                                     <Monitor className="h-4 w-4" />
@@ -90,17 +90,17 @@ export function SettingsDialog() {
 
                     {/* Data Export Section */}
                     <div className="space-y-4">
-                        <h4 className="font-medium leading-none">Patient Data Export</h4>
-                        <div className="rounded-md border border-border bg-muted p-4">
+                        <h4 className="font-medium leading-none text-foreground">Patient Data Export</h4>
+                        <div className="rounded-lg border border-border bg-secondary/50 dark:bg-secondary/30 p-4">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="space-y-1">
-                                    <p className="text-sm font-medium">Current Session Record</p>
+                                    <p className="text-sm font-medium text-foreground">Current Session Record</p>
                                     <p className="text-xs text-muted-foreground">Download as secure .txt report</p>
                                 </div>
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="bg-secondary text-secondary-foreground border-border hover:bg-accent hover:text-accent-foreground w-full sm:w-auto"
+                                    className="bg-secondary dark:bg-secondary/50 text-secondary-foreground border-border hover:bg-accent hover:text-accent-foreground w-full sm:w-auto"
                                     onClick={handleExport}
                                     disabled={!currentSession}
                                 >

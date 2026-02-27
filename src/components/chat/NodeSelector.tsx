@@ -1,31 +1,25 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ChevronsUpDown, Activity, Sparkles, Monitor, Server } from 'lucide-react';
+import { Check, ChevronDown, Package, Server, Monitor, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import {
-    Command,
-    CommandInput,
-} from '@/components/ui/command';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { useChatStore } from '@/hooks/useChatStore';
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function NodeSelector({ className }: { className?: string }) {
     const [open, setOpen] = React.useState(false);
-    const { availableNodes, activeNodeAddress, fetchNodes, setActiveNode, lastUsedModel } = useChatStore();
+    const { availableNodes, activeNodeAddress, fetchNodes, setActiveNode } = useChatStore();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isScanning, setIsScanning] = React.useState(false);
+    const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-    // Initial scan on mount and poll every 10s
+    // Initial scan on mount and poll every 5s
     React.useEffect(() => {
         const scan = async () => {
-            // Only set scanning UI on initial load if empty
             if (availableNodes.length === 0) setIsScanning(true);
             await fetchNodes();
             setIsScanning(false);
@@ -34,10 +28,11 @@ export function NodeSelector({ className }: { className?: string }) {
 
         const interval = setInterval(() => {
             fetchNodes();
-        }, 10000); // Poll every 10 seconds
+            if (open) fetchNodes();
+        }, 5000);
 
         return () => clearInterval(interval);
-    }, [fetchNodes, availableNodes.length]);
+    }, [fetchNodes, availableNodes.length, open]);
 
     // Format helper to remove .gguf
     const formatModelName = (name: string | null | undefined): string => {
@@ -48,13 +43,6 @@ export function NodeSelector({ className }: { className?: string }) {
     // Helper to extract size (e.g., 7B, 1.5B)
     const itemSize = (modelName: string | undefined): string => {
         if (!modelName) return '';
-        const parts = modelName.split('-');
-        const lastPart = parts[parts.length - 1];
-
-        if (lastPart.includes('B')) {
-            return lastPart;
-        }
-
         const sizeMatch = modelName.match(/(\d+B|\d+\.\d+B)/i);
         return sizeMatch ? sizeMatch[1] : '';
     };
@@ -80,47 +68,27 @@ export function NodeSelector({ className }: { className?: string }) {
                 return n.given_name.toLowerCase().includes(term) ||
                     (n.model_name || '').toLowerCase().includes(term);
             })
-            .sort((a, b) => {
-                // Determine if nodes are "Local Backup"
-                const isALocal = a.given_name === 'Local Backup';
-                const isBLocal = b.given_name === 'Local Backup';
-
-                // If both are local or both are not local, sort alphabetically
-                if (isALocal === isBLocal) {
-                    return a.given_name.localeCompare(b.given_name);
-                }
-
-                // If A is local, it goes after B (return 1)
-                // If B is local, A goes before B (return -1)
-                return isALocal ? 1 : -1;
-            });
+            .sort((a, b) => a.given_name.localeCompare(b.given_name));
     }, [availableNodes, searchTerm]);
 
     const activeNode = availableNodes.find((node) => node.address === activeNodeAddress);
 
-    // Determine display model name
-    let displayModelName = "Auto / Dynamic";
+    // Determine display model name - matching Web-UI logic
+    let displayModelName = 'Loading...';
     if (activeNodeAddress && activeNode) {
-        displayModelName = activeNode.model_name;
-    } else if (!activeNodeAddress) {
-        // Auto Mode Logic: Prefer remote, use local as backup
-        const remoteNodes = sortedNodes.filter(node =>
-            !node.given_name.toLowerCase().includes('local')
-        );
-        const localNodes = sortedNodes.filter(node =>
-            node.given_name.toLowerCase().includes('local')
-        );
-
-        if (remoteNodes.length > 0) {
-            // Remote models available - prefer them
-            displayModelName = remoteNodes[0].model_name;
-        } else if (localNodes.length > 0) {
-            // Only local models available - use as backup
-            displayModelName = `${localNodes[0].model_name} (Local Model)`;
-        }
+        displayModelName = formatModelName(activeNode.model_name);
+    } else if (sortedNodes.length > 0) {
+        displayModelName = formatModelName(sortedNodes[0].model_name);
     }
 
-    const isAutoMode = !activeNodeAddress;
+    const toggleNodeSelection = (address: string) => {
+        if (activeNodeAddress === address) {
+            setActiveNode('');
+        } else {
+            setActiveNode(address);
+        }
+        setOpen(false);
+    };
 
     return (
         <Popover open={open} onOpenChange={(val) => {
@@ -128,154 +96,123 @@ export function NodeSelector({ className }: { className?: string }) {
             if (val) {
                 setSearchTerm('');
                 fetchNodes();
+                setTimeout(() => searchInputRef.current?.focus(), 100);
             }
         }}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="ghost"
-                    role="combobox"
-                    aria-expanded={open}
-                    className={cn(
-                        "h-8 gap-2 rounded-md px-3 text-sm font-medium transition-colors w-full sm:w-auto max-w-[200px] sm:max-w-fit md:max-w-fit",
-                        activeNodeAddress
-                            ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25"
-                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                        className
-                    )}
-                >
-                    {activeNodeAddress ? (
-                        <Activity className="h-4 w-4 shrink-0" />
-                    ) : (
-                        <Sparkles className="h-4 w-4 shrink-0 opacity-70" />
-                    )}
+            <PopoverTrigger
+                className={cn(
+                    // Base Layout - matching Web-UI: h-8, text-sm, rounded-md
+                    "inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                    // Colors - matching Web-UI
+                    activeNodeAddress
+                        ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25"
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                    // Width controls
+                    "max-w-[160px] sm:max-w-[500px]",
+                    className
+                )}
+            >
+                {activeNodeAddress ? (
+                    <Server className="h-4 w-4 shrink-0" />
+                ) : (
+                    <Package className="h-4 w-4 shrink-0 opacity-70" />
+                )}
 
-                    <span className="truncate block max-w-[150px] sm:max-w-md md:max-w-lg text-left">
-                        {formatModelName(displayModelName)}
-                    </span>
-                    <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-                </Button>
+                <span className="truncate pb-px block max-w-[110px] sm:max-w-[450px]">
+                    {displayModelName}
+                </span>
+
+                {isScanning ? (
+                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin opacity-50" />
+                ) : (
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                )}
             </PopoverTrigger>
+
             <PopoverContent
-                className="w-[calc(100vw-16px)] max-w-[350px] sm:w-[350px] p-0 shadow-2xl rounded-xl overflow-hidden bg-popover border border-border/50"
-                align="start"
-                side="top"
-                alignOffset={-60}
+                className="w-[calc(100vw-32px)] max-w-[400px] sm:w-[400px] p-0 shadow-lg rounded-lg overflow-hidden"
+                align="end"
                 sideOffset={8}
+                side="top"
             >
                 <div className="flex flex-col">
-                    <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/30 border-b border-border flex justify-between items-center">
+                    {/* Header - matching Web-UI */}
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30 border-b flex justify-between items-center">
                         <span>Select Processing Node</span>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setActiveNode("");
-                                    setOpen(false);
-                                }}
-                                className={cn(
-                                    "h-6 px-2.5 text-[10px] font-bold gap-1.5 transition-all rounded shadow-sm",
-                                    isAutoMode
-                                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                        : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border"
-                                )}>
-                                <Sparkles className="h-3 w-3" />
-                                AUTO
-                            </Button>
-                            <span className="bg-secondary/50 text-foreground border border-border px-1.5 py-0.5 rounded text-[10px] tabular-nums font-mono">
-                                {sortedNodes.length} ONLINE
-                            </span>
-                        </div>
+                        <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] tabular-nums">
+                            {sortedNodes.length} Online
+                        </span>
                     </div>
 
-                    <div className="p-2 border-b border-border">
-                        <Command className="bg-transparent border-none">
-                            <CommandInput
-                                placeholder="Search nodes..."
-                                value={searchTerm}
-                                onValueChange={setSearchTerm}
-                                className="h-9 text-xs bg-muted/50 border border-input rounded-md focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground text-foreground"
-                            />
-                        </Command>
+                    {/* Search - matching Web-UI */}
+                    <div className="p-2 border-b">
+                        <input
+                            ref={searchInputRef}
+                            id="node-search"
+                            type="text"
+                            placeholder="Search nodes..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full h-9 px-3 text-sm bg-muted/50 border border-input rounded-md focus:border-ring focus:ring-1 focus:ring-ring focus:outline-none placeholder:text-muted-foreground text-foreground transition-colors"
+                        />
                     </div>
 
-                    <ScrollArea className="h-auto max-h-[250px]">
-                        <div className="p-1 space-y-1">
-                            {isScanning && sortedNodes.length === 0 ? (
-                                <div className="py-8 text-center text-sm text-slate-400 animate-pulse flex flex-col items-center gap-3">
-                                    <Activity className="h-5 w-5 animate-spin text-blue-500" />
-                                    <span className="text-xs font-medium">Scanning network...</span>
-                                </div>
-                            ) : sortedNodes.length === 0 ? (
-                                <div className="p-4 text-center text-xs text-slate-500">
-                                    No healthy nodes found.
-                                </div>
-                            ) : (
-                                sortedNodes.map((node) => {
-                                    const isSelected = activeNodeAddress === node.address;
-                                    const formattedModelName = formatModelName(node.model_name);
-                                    const isLocal = node.given_name.toLowerCase().includes('local');
+                    {/* Node List - matching Web-UI */}
+                    <div className="max-h-[min(50vh,300px)] overflow-y-auto p-1">
+                        {sortedNodes.map((node) => {
+                            const isSelected = activeNodeAddress === node.address;
+                            const formattedModelName = formatModelName(node.model_name);
+                            const size = itemSize(formattedModelName);
 
-                                    // Check if there are any remote nodes available
-                                    const hasRemoteNodes = sortedNodes.some(n => !n.given_name.toLowerCase().includes('local'));
-                                    // Disable Local Backup if remote nodes exist
-                                    const isDisabled = isLocal && hasRemoteNodes;
-
-                                    return (
-                                        <button
-                                            key={node.address}
-                                            type="button"
-                                            disabled={isDisabled}
-                                            className={cn(
-                                                "flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors text-left group",
-                                                isSelected
-                                                    ? "bg-primary/10 text-primary border border-primary/20"
-                                                    : "hover:bg-accent text-muted-foreground border border-transparent",
-                                                isDisabled && "opacity-50 cursor-not-allowed grayscale hover:bg-transparent"
-                                            )}
-                                            onClick={() => {
-                                                if (isDisabled) return;
-
-                                                if (activeNodeAddress !== node.address) {
-                                                    setActiveNode(node.address);
-                                                }
-                                                // Always close, do not toggle off
-                                                setOpen(false);
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                <div className="relative shrink-0">
-                                                    {/* Revert to simple dot indicator */}
-                                                    <div className={cn("h-1.5 w-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0", isDisabled ? "bg-slate-500" : "bg-emerald-500")} />
-                                                </div>
-
-                                                <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                                                    <span className={cn("font-medium truncate block leading-tight", isSelected ? "text-primary" : "", isDisabled && "text-muted-foreground")}>
-                                                        {node.given_name} {isDisabled && "(Backup Only)"}
+                            return (
+                                <button
+                                    key={node.address}
+                                    type="button"
+                                    className={cn(
+                                        "flex w-full items-center justify-between rounded-md px-2 py-2.5 text-sm transition-colors text-left group",
+                                        isSelected
+                                            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                            : "hover:bg-muted text-foreground"
+                                    )}
+                                    onClick={() => toggleNodeSelection(node.address)}
+                                >
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <Monitor className="h-4 w-4 shrink-0 text-green-500" />
+                                        <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                                            <span className="font-medium truncate block">
+                                                {node.given_name}
+                                            </span>
+                                            {formattedModelName && (
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    <span className="text-xs bg-muted/50 px-1.5 py-0.5 rounded truncate flex-1 max-w-full">
+                                                        {formattedModelName}
                                                     </span>
-                                                    {formattedModelName && (
-                                                        <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                                                            <span className="text-xs opacity-60 truncate max-w-full">
-                                                                {formattedModelName}
-                                                            </span>
-                                                        </div>
+                                                    {size && (
+                                                        <span className="text-[10px] text-muted-foreground opacity-70 shrink-0">
+                                                            {size}
+                                                        </span>
                                                     )}
                                                 </div>
-                                            </div>
-
-                                            {isSelected && (
-                                                <Check className="h-4 w-4 shrink-0 text-primary ml-2" />
                                             )}
-                                        </button>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </ScrollArea>
+                                        </div>
+                                    </div>
+
+                                    {isSelected && (
+                                        <Check className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 ml-2" />
+                                    )}
+                                </button>
+                            );
+                        })}
+
+                        {sortedNodes.length === 0 && (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                {isScanning ? 'Scanning network...' : 'No healthy nodes found.'}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </PopoverContent>
-        </Popover >
+        </Popover>
     );
 }

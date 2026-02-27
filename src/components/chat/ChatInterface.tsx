@@ -14,7 +14,7 @@ export function ChatInterface() {
 
     if (isEmpty) {
         return (
-            <div className="flex flex-1 flex-col items-center justify-center p-4">
+            <div className="flex flex-1 flex-col items-center justify-center px-0 py-4">
                 <div className="w-full max-w-3xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Hero Text */}
                     <div className="text-center space-y-4">

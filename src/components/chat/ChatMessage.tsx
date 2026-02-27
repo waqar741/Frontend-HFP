@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Copy, RotateCw, Check, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Copy, RotateCw, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
-import { Message } from '@/types/chat';
+import { Message, MessageVersion } from '@/types/chat';
 
 interface ChatMessageProps {
     message: Message;
@@ -15,6 +15,7 @@ interface ChatMessageProps {
     onRegenerate?: () => void;
     onCopy?: (content: string) => void;
     onDelete?: () => void;
+    onVersionChange?: (versionIndex: number | undefined) => void;
 }
 
 export function ChatMessage({
@@ -25,16 +26,40 @@ export function ChatMessage({
     onRegenerate,
     onCopy,
     onDelete,
+    onVersionChange,
 }: ChatMessageProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editedContent, setEditedContent] = useState(message.content);
-    const [isHovered, setIsHovered] = useState(false);
+    const [showCopyToast, setShowCopyToast] = useState(false);
+    const [viewingVersionIndex, setViewingVersionIndex] = useState<number | undefined>(undefined);
+    const messageRef = useRef<HTMLDivElement>(null);
 
     const isUser = message.role === 'user';
+    const isStreaming = !isUser && isLast && message.content && !message.stats;
+
+    // Version navigation
+    const versions = message.previousVersions || [];
+    const totalVersions = versions.length + 1; // previous + current
+    const isViewingOldVersion = viewingVersionIndex !== undefined;
+    const currentViewIndex = isViewingOldVersion ? viewingVersionIndex : versions.length; // 0-indexed, latest = versions.length
+
+    // Get the content/stats/model for the currently viewed version
+    let displayContent = message.content;
+    let displayStats = message.stats;
+    let displayModel = message.model || modelName || message.modelName;
+
+    if (isViewingOldVersion && viewingVersionIndex < versions.length) {
+        const ver = versions[viewingVersionIndex];
+        displayContent = ver.content;
+        displayStats = ver.stats;
+        displayModel = ver.model || ver.modelName;
+    }
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(message.content);
-        onCopy?.(message.content);
+        navigator.clipboard.writeText(displayContent);
+        setShowCopyToast(true);
+        onCopy?.(displayContent);
+        setTimeout(() => setShowCopyToast(false), 2000);
     };
 
     const handleSaveEdit = () => {
@@ -49,15 +74,46 @@ export function ChatMessage({
         setIsEditing(false);
     };
 
+    const goToPrevVersion = () => {
+        if (currentViewIndex > 0) {
+            const newIndex = currentViewIndex - 1;
+            setViewingVersionIndex(newIndex);
+            onVersionChange?.(newIndex);
+        }
+    };
+
+    const goToNextVersion = () => {
+        if (currentViewIndex < versions.length) {
+            const newIndex = currentViewIndex + 1;
+            // If at latest, set to undefined
+            if (newIndex >= versions.length) {
+                setViewingVersionIndex(undefined);
+                onVersionChange?.(undefined);
+            } else {
+                setViewingVersionIndex(newIndex);
+                onVersionChange?.(newIndex);
+            }
+        }
+    };
+
     return (
         <div
+            ref={messageRef}
             className={cn(
-                'group flex w-full gap-3 px-3 md:px-6 py-2 transition-colors duration-200',
-                isHovered && 'bg-accent/5'
+                'group relative flex w-full gap-3 px-3 md:px-6 py-2',
+                isUser ? 'animate-message-user' : 'animate-message-ai'
             )}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
+            {/* Copy Toast - Fixed at bottom center */}
+            {showCopyToast && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-toast pointer-events-none">
+                    <div className="flex items-center gap-1.5 bg-foreground text-background px-4 py-2 rounded-full text-sm font-medium shadow-xl">
+                        <Check className="h-3.5 w-3.5" />
+                        Copied to clipboard
+                    </div>
+                </div>
+            )}
+
             <div className="flex w-full flex-col">
                 {isUser ? (
                     /* User Message - Right Aligned Bubble */
@@ -65,7 +121,7 @@ export function ChatMessage({
                         <div className="flex flex-col items-end max-w-[800px]">
                             <div
                                 className={cn(
-                                    'relative rounded-2xl px-4 py-2 text-sm md:text-base shadow-sm transition-all',
+                                    'user-bubble relative rounded-2xl px-4 py-2 text-sm md:text-base shadow-sm',
                                     'bg-[#0ea5e9] text-white rounded-tr-sm'
                                 )}
                             >
@@ -102,94 +158,74 @@ export function ChatMessage({
                                 )}
                             </div>
 
-                            {/* Action Buttons - User Messages - Always Visible */}
+                            {/* Action Buttons - User Messages */}
                             {!isEditing && (
-                                <div className="flex gap-1 mt-0.5 opacity-100 transition-opacity duration-200">
+                                <div className="message-actions flex gap-1 mt-0.5">
                                     <Button
                                         size="icon"
                                         variant="ghost"
                                         onClick={handleCopy}
-                                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                        className="h-6 w-6 text-muted-foreground hover:text-foreground transition-colors duration-150"
                                         title="Copy message"
                                     >
-                                        <Copy className="h-3 w-3" />
+                                        {showCopyToast ? (
+                                            <Check className="h-3 w-3 text-green-500" />
+                                        ) : (
+                                            <Copy className="h-3 w-3" />
+                                        )}
                                     </Button>
-                                    {onEdit && (
-                                        /* Edit button is intentionally hidden unless needed, but logic remains if requested later */
-                                        null
-                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
                 ) : (
                     /* AI Message - Full Width Left Aligned */
-                    <div className="w-full max-w-[800px]">
+                    <div className="ai-message-container w-full max-w-[800px]">
                         <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed dark:prose-p:text-foreground dark:prose-headings:text-foreground prose-code:text-primary overflow-x-auto w-full">
-                            <ReactMarkdown>{message.content}</ReactMarkdown>
+                            <ReactMarkdown>{displayContent}</ReactMarkdown>
+                            {/* Streaming cursor */}
+                            {isStreaming && !isViewingOldVersion && (
+                                <span className="animate-cursor-blink inline-block w-[2px] h-[1em] bg-primary align-text-bottom ml-0.5" />
+                            )}
                         </div>
 
-                        {/* Metadata Footer - AI Messages - Compact & Styled */}
-                        <div className="flex flex-col w-full mt-2 gap-2 select-none">
-                            {/* Row 1: Metrics & Model - Styled as minimal text */}
+                        {/* Metadata Footer - AI Messages */}
+                        <div className={cn(
+                            "flex flex-col w-full mt-2 gap-2 select-none",
+                            displayStats && "animate-fade-in-up"
+                        )}>
+                            {/* Row 1: Metrics & Model */}
                             <div className="flex items-center w-full max-w-full">
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-0.5 w-fit">
                                     {/* Model Name */}
                                     <span className="font-semibold text-xs text-foreground/80 leading-tight shrink-1 break-words">
-                                        {(message.model || modelName || message.modelName || 'Unknown Model').replace(/\.gguf$/i, '')}
+                                        {(displayModel || 'Unknown Model').toString().replace(/\.gguf$/i, '')}
                                     </span>
 
-                                    {message.stats && (
+                                    {displayStats && (
                                         <>
-                                            {/* Divider */}
                                             <div className="hidden sm:block h-3.5 w-px bg-border shrink-0" />
-
-                                            {/* Metrics */}
                                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground font-medium">
-                                                {/* Tokens */}
-                                                {message.stats.tokens !== undefined && (
+                                                {displayStats.tokens !== undefined && (
                                                     <div className="flex items-center gap-1.5" title="Tokens Generated">
                                                         <span className="text-[10px] opacity-100 bg-muted text-muted-foreground px-1 py-0.5 rounded border border-border/50">ab</span>
-                                                        <span>{message.stats.tokens} tokens</span>
+                                                        <span>{displayStats.tokens} tokens</span>
                                                     </div>
                                                 )}
-
-                                                {/* Time */}
-                                                {message.stats.timeMs !== undefined && (
+                                                {displayStats.timeMs !== undefined && (
                                                     <div className="flex items-center gap-1.5" title="Generation Time">
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            className="w-3.5 h-3.5 opacity-70"
-                                                        >
-                                                            <circle cx="12" cy="12" r="10" />
-                                                            <polyline points="12 6 12 12 16 14" />
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 opacity-70">
+                                                            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                                                         </svg>
-                                                        <span>{(message.stats.timeMs / 1000).toFixed(2)}s</span>
+                                                        <span>{(displayStats.timeMs / 1000).toFixed(2)}s</span>
                                                     </div>
                                                 )}
-
-                                                {/* Speed */}
-                                                {message.stats.tokensPerSec !== undefined && (
+                                                {displayStats.tokensPerSec !== undefined && (
                                                     <div className="flex items-center gap-1.5" title="Tokens per second">
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            className="w-3.5 h-3.5 opacity-70"
-                                                        >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 opacity-70">
                                                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                                                         </svg>
-                                                        <span>{message.stats.tokensPerSec.toFixed(2)} tokens/s</span>
+                                                        <span>{displayStats.tokensPerSec.toFixed(2)} tokens/s</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -198,28 +234,63 @@ export function ChatMessage({
                                 </div>
                             </div>
 
-                            {/* Row 2: Actions (Copy, Regenerate, etc.) */}
-                            <div className="flex gap-1 opacity-100 transition-opacity duration-200 pl-1">
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={handleCopy}
-                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md"
-                                    title="Copy response"
-                                >
-                                    <Copy className="h-3.5 w-3.5" />
-                                </Button>
-                                {isLast && onRegenerate && (
+                            {/* Row 2: Actions + Version Navigation */}
+                            <div className="flex items-center gap-2 pl-1">
+                                {/* Actions */}
+                                <div className="message-actions flex gap-1">
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={onRegenerate}
-                                        disabled={(message.regenerationCount || 0) >= 2}
-                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                                        title={(message.regenerationCount || 0) >= 2 ? "Max regenerations reached (2/2)" : "Regenerate response"}
+                                        onClick={handleCopy}
+                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-all duration-150"
+                                        title="Copy response"
                                     >
-                                        <RotateCw className="h-3.5 w-3.5" />
+                                        {showCopyToast ? (
+                                            <Check className="h-3.5 w-3.5 text-green-500" />
+                                        ) : (
+                                            <Copy className="h-3.5 w-3.5" />
+                                        )}
                                     </Button>
+                                    {isLast && onRegenerate && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={onRegenerate}
+                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-all duration-150"
+                                            title="Regenerate response"
+                                        >
+                                            <RotateCw className="h-3.5 w-3.5" />
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Version Navigator - shows only when there are previous versions */}
+                                {totalVersions > 1 && (
+                                    <div className="flex items-center gap-0.5 ml-1">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={goToPrevVersion}
+                                            disabled={currentViewIndex === 0}
+                                            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-md"
+                                            title="Previous version"
+                                        >
+                                            <ChevronLeft className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <span className="text-xs text-muted-foreground tabular-nums font-medium min-w-[2rem] text-center">
+                                            {currentViewIndex + 1}/{totalVersions}
+                                        </span>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={goToNextVersion}
+                                            disabled={currentViewIndex >= versions.length}
+                                            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-md"
+                                            title="Next version"
+                                        >
+                                            <ChevronRight className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         </div>

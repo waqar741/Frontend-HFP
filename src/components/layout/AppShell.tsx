@@ -19,8 +19,8 @@ export function AppShell({ children }: AppShellProps) {
             {/* Desktop Sidebar - Responsive visibility */}
             <aside
                 className={cn(
-                    "hidden border-r border-slate-700/50 bg-sidebar transition-all duration-300 md:flex md:flex-col",
-                    isSidebarOpen ? "w-[280px]" : "w-0 overflow-hidden border-none"
+                    "hidden border-r border-slate-700/50 bg-sidebar md:flex md:flex-col min-w-0 transition-[width,opacity] duration-300 ease-in-out",
+                    isSidebarOpen ? "w-[280px] opacity-100" : "w-0 opacity-0 overflow-hidden border-none"
                 )}
             >
                 <Sidebar />

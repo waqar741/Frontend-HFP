@@ -3,6 +3,15 @@ export interface Message {
     content: string;
 }
 
+// System prompt to restrict domain to medical topics
+const SYSTEM_MESSAGE: Message = {
+    role: 'system',
+    content: `You are a specialized medical AI assistant for HealthFirstPriority. Your sole purpose is to provide accurate, professional, and helpful information related to health, medicine, medical conditions, treatments, and wellness.
+If a user asks a question that is NOT related to medical or health topics, you must politely decline to answer, stating that you are an AI assistant specialized in medical information only.
+Do not engage in general conversation, creative writing, coding, or any other non-medical tasks.
+Always prioritize patient safety and recommend seeing a healthcare professional for specific medical advice.`
+};
+
 export async function sendChatMessage(
     messages: Message[],
     targetNode: string | null,
@@ -13,20 +22,32 @@ export async function sendChatMessage(
     let detectedModel: string | undefined;
 
     try {
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+        };
+
+        // Inject target node header if selected (same as Web-UI pattern)
+        if (targetNode) {
+            headers['X-Target-Node'] = targetNode;
+        }
+
+        // Call through Next.js Edge route handler for proper SSE streaming
+        // (Next.js rewrites buffer SSE, so we use a route handler instead)
         const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
-                messages,
-                targetNode
+                model: 'Qwen2.5-1.5B-Instruct',
+                messages: [SYSTEM_MESSAGE, ...messages],
+                // messages: [...messages],
+                stream: true,
             }),
-            signal, // Pass abort signal
+            signal,
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to send message: ${response.statusText}`);
+            const errorText = await response.text();
+            throw new Error(`Failed to send message: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
         if (!response.body) {
