@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings, Download, Sun, Moon, Monitor } from 'lucide-react';
+import { Settings, Download, FileText, Sun, Moon, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -18,7 +18,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { useChatStore } from '@/hooks/useChatStore';
-import { exportChatToText } from '@/lib/export-utils';
+import { exportAllChatsToText, exportAllChatsToPDF } from '@/lib/export-utils';
 import { useTheme } from 'next-themes';
 
 export function SettingsDialog() {
@@ -26,9 +26,15 @@ export function SettingsDialog() {
     const { theme, setTheme } = useTheme();
     const currentSession = sessions.find(s => s.id === currentSessionId);
 
-    const handleExport = () => {
-        if (currentSession) {
-            exportChatToText(currentSession);
+    const handleExportTxt = () => {
+        if (sessions && sessions.length > 0) {
+            exportAllChatsToText(sessions);
+        }
+    };
+
+    const handleExportPdf = () => {
+        if (sessions && sessions.length > 0) {
+            exportAllChatsToPDF(sessions);
         }
     };
 
@@ -92,21 +98,33 @@ export function SettingsDialog() {
                     <div className="space-y-4">
                         <h4 className="font-medium leading-none text-foreground">Patient Data Export</h4>
                         <div className="rounded-lg border border-border bg-secondary/50 dark:bg-secondary/30 p-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex flex-col gap-4">
                                 <div className="space-y-1">
-                                    <p className="text-sm font-medium text-foreground">Current Session Record</p>
-                                    <p className="text-xs text-muted-foreground">Download as secure .txt report</p>
+                                    <p className="text-sm font-medium text-foreground">All Session Records</p>
+                                    <p className="text-xs text-muted-foreground">Export all conversations as a formatted report</p>
                                 </div>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="bg-secondary dark:bg-secondary/50 text-secondary-foreground border-border hover:bg-accent hover:text-accent-foreground w-full sm:w-auto"
-                                    onClick={handleExport}
-                                    disabled={!currentSession}
-                                >
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Export
-                                </Button>
+                                <div className="flex gap-2 w-full">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex-1 bg-secondary dark:bg-secondary/50 text-secondary-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                                        onClick={handleExportTxt}
+                                        disabled={!sessions || sessions.length === 0}
+                                    >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Export TXT
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex-1 bg-secondary dark:bg-secondary/50 text-secondary-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                                        onClick={handleExportPdf}
+                                        disabled={!sessions || sessions.length === 0}
+                                    >
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export PDF
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>

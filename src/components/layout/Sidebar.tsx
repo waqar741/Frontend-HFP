@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Search, MessageSquare, MoreHorizontal, Pencil, Trash2, Download } from 'lucide-react';
+import { Plus, Search, MessageSquare, MoreHorizontal, Pencil, Trash2, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,7 +22,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { exportChatToText } from '@/lib/export-utils';
+import { exportChatToText, exportChatToPDF } from '@/lib/export-utils';
 
 export function Sidebar() {
     const { sessions, currentSessionId, createNewChat, selectSession, deleteSession, renameSession } = useChatStore();
@@ -65,10 +65,17 @@ export function Sidebar() {
         }
     };
 
-    const handleExport = (id: string) => {
+    const handleExportTxt = (id: string) => {
         const session = sessions.find(s => s.id === id);
         if (session) {
             exportChatToText(session);
+        }
+    }
+
+    const handleExportPdf = (id: string) => {
+        const session = sessions.find(s => s.id === id);
+        if (session) {
+            exportChatToPDF(session);
         }
     }
 
@@ -145,9 +152,13 @@ export function Sidebar() {
                                                     <Pencil className="mr-2 h-4 w-4" />
                                                     Edit
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExport(session.id); }}>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExportTxt(session.id); }}>
+                                                    <FileText className="mr-2 h-4 w-4" />
+                                                    Export as TXT
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExportPdf(session.id); }}>
                                                     <Download className="mr-2 h-4 w-4" />
-                                                    Export
+                                                    Export as PDF
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator className="bg-border" />
                                                 <DropdownMenuItem
