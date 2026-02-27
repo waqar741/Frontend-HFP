@@ -7,7 +7,18 @@ import { sendChatMessage, Message } from '@/lib/api-client';
 import { v4 as uuidv4 } from 'uuid';
 import { PERSONAS } from '@/hooks/useChatStore';
 
-export function ChatArea() {
+interface ChatAreaProps {
+    onPromptSelect?: (prompt: string) => void;
+}
+
+const SUGGESTED_PROMPTS = [
+    { title: "Review Lab Results", prompt: "Can you help me understand my recent blood test results? My doctor said my LDL cholesterol is slightly high." },
+    { title: "Check Interactions", prompt: "Are there any known interactions between Ibuprofen and Lisinopril?" },
+    { title: "Symptom Checker", prompt: "I've been having a persistent headache for three days along with mild sensitivity to light." },
+    { title: "Dietary Advice", prompt: "What are some heart-healthy breakfast options that are low in sodium and high in fiber?" }
+];
+
+export function ChatArea({ onPromptSelect }: ChatAreaProps) {
     const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount, activePersonaId } = useChatStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
@@ -195,11 +206,29 @@ export function ChatArea() {
     return (
         <div className="flex-1 overflow-y-auto chat-scroll-area">
             {messages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-                    <h2 className="text-2xl font-semibold mb-2 text-foreground">Welcome to HealthFirstPriority</h2>
-                    <p className="text-muted-foreground">
-                        Upload your health records or ask any medical question to get started.
+                <div className="flex h-full flex-col items-center justify-center p-4 text-center max-w-3xl mx-auto animate-fade-in-up">
+                    <div className="bg-primary/10 p-4 rounded-full mb-6">
+                        <svg className="w-12 h-12 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                    </div>
+                    <h2 className="text-3xl font-semibold mb-3 text-foreground tracking-tight">How can I help you today?</h2>
+                    <p className="text-muted-foreground mb-10 max-w-lg">
+                        I am your specialized medical AI assistant. I can help analyze records, check symptoms, or answer general health questions.
                     </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
+                        {SUGGESTED_PROMPTS.map((item, i) => (
+                            <button
+                                key={i}
+                                onClick={() => onPromptSelect?.(item.prompt)}
+                                className="flex flex-col items-start gap-1 p-4 rounded-xl border border-border/50 bg-card hover:bg-accent hover:border-accent-foreground/20 text-left transition-all duration-200 group"
+                            >
+                                <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{item.title}</span>
+                                <span className="text-xs text-muted-foreground line-clamp-2">{item.prompt}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             ) : (
                 <div className="pb-4">

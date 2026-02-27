@@ -3,11 +3,18 @@
 import { useChatStore } from '@/hooks/useChatStore';
 import { ChatArea } from '@/components/chat/ChatArea';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { useState } from 'react';
 
 export function ChatInterface() {
     const { currentSessionId, sessions } = useChatStore();
+    const [selectedPrompt, setSelectedPrompt] = useState<string | undefined>();
+
     const currentSession = sessions.find((s) => s.id === currentSessionId);
     const messages = currentSession?.messages || [];
+
+    const handlePromptSelect = (prompt: string) => {
+        setSelectedPrompt(prompt);
+    };
 
     // Determine if we are in an "empty" state (no session, or session has no messages)
     const isEmpty = !currentSessionId || messages.length === 0;
@@ -27,7 +34,10 @@ export function ChatInterface() {
                     </div>
 
                     {/* Centered Input */}
-                    <ChatInput />
+                    <ChatInput
+                        initialPrompt={selectedPrompt}
+                        onPromptReceived={() => setSelectedPrompt(undefined)}
+                    />
                 </div>
             </div>
         );
@@ -37,10 +47,13 @@ export function ChatInterface() {
     return (
         <>
             {/* Chat Area - Takes available space */}
-            <ChatArea />
+            <ChatArea onPromptSelect={handlePromptSelect} />
 
             {/* Input Area - Fixed at bottom */}
-            <ChatInput />
+            <ChatInput
+                initialPrompt={selectedPrompt}
+                onPromptReceived={() => setSelectedPrompt(undefined)}
+            />
         </>
     );
 }

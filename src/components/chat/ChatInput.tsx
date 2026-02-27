@@ -8,12 +8,25 @@ import { NodeSelector } from './NodeSelector';
 import { v4 as uuidv4 } from 'uuid';
 import { sendChatMessage } from '@/lib/api-client';
 
-export function ChatInput() {
+interface ChatInputProps {
+    initialPrompt?: string;
+    onPromptReceived?: () => void;
+}
+
+export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = {}) {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration, activePersonaId } = useChatStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
+
+    // Handle initial prompt from suggestions
+    useEffect(() => {
+        if (initialPrompt && !isLoading) {
+            setInput(initialPrompt);
+            onPromptReceived?.();
+        }
+    }, [initialPrompt, isLoading, onPromptReceived]);
 
     // Auto-resize textarea - matching Web-UI behavior
     useEffect(() => {
