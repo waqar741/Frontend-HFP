@@ -3,7 +3,7 @@
 import { useState, KeyboardEvent, useRef, useEffect } from 'react';
 import { Paperclip, ArrowUp, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useChatStore } from '@/hooks/useChatStore';
+import { useChatStore, PERSONAS } from '@/hooks/useChatStore';
 import { NodeSelector } from './NodeSelector';
 import { v4 as uuidv4 } from 'uuid';
 import { sendChatMessage } from '@/lib/api-client';
@@ -11,8 +11,9 @@ import { sendChatMessage } from '@/lib/api-client';
 export function ChatInput() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration } = useChatStore();
+    const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration, activePersonaId } = useChatStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
 
     // Auto-resize textarea - matching Web-UI behavior
     useEffect(() => {
@@ -96,6 +97,7 @@ export function ChatInput() {
                         return true;
                     }) as any,
                 targetNode,
+                { role: 'system', content: activePersona.systemPrompt },
                 (chunk) => {
                     fullContent += chunk;
                     updateMessage(activeSessionId!, assistantMessageId, fullContent);
