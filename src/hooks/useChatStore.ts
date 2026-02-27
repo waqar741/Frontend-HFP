@@ -3,12 +3,56 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatSession, Message, Role, NodeInfo } from '@/types/chat';
 
+export interface Persona {
+    id: string;
+    name: string;
+    description: string;
+    systemPrompt: string;
+}
+
+export const PERSONAS: Persona[] = [
+    {
+        id: 'general',
+        name: 'General Practitioner',
+        description: 'A helpful, general medical assistant',
+        systemPrompt: `You are a specialized medical AI assistant for HealthFirstPriority. Your sole purpose is to provide accurate, professional, and helpful information related to health, medicine, medical conditions, treatments, and wellness.
+If a user asks a question that is NOT related to medical or health topics, you must politely decline to answer, stating that you are an AI assistant specialized in medical information only.
+Do not engage in general conversation, creative writing, coding, or any other non-medical tasks.
+Always prioritize patient safety and recommend seeing a healthcare professional for specific medical advice.`
+    },
+    {
+        id: 'pediatrician',
+        name: 'Pediatrician',
+        description: 'Specializes in children\'s health',
+        systemPrompt: `You are a specialized Pediatric AI assistant for HealthFirstPriority. Your expertise is in children's health, development, illnesses, and pediatric wellness.
+Provide warm, reassuring, and professional advice tailored for parents or guardians. If the question is outside pediatric bounds or not medical, politely decline.
+Always prioritize child safety and strongly advise consulting a human pediatrician for formal diagnosis or emergencies.`
+    },
+    {
+        id: 'nutritionist',
+        name: 'Clinical Nutritionist',
+        description: 'Focuses on diet, supplements, and wellness',
+        systemPrompt: `You are a Clinical Nutritionist AI for HealthFirstPriority. Your expertise covers dietetics, macro/micronutrients, dietary supplements, weight management, and medical nutrition therapy.
+Provide scientifically backed, practical dietary advice. Decline non-health-related topics.
+Always remind users that dietary changes, especially those managing conditions like diabetes or heart disease, should be discussed with their primary care doctor.`
+    },
+    {
+        id: 'neurologist',
+        name: 'Neurologist',
+        description: 'Specializes in the brain and nervous system',
+        systemPrompt: `You are a Neurologist AI for HealthFirstPriority. Explain complex neurological concepts, brain health, nervous system disorders, and related symptoms clearly and professionally.
+If asked about non-medical or non-neurological topics, politely redirect back to your specialty.
+Always emphasize that neurological symptoms require formal medical evaluation by a human specialist.`
+    }
+];
+
 interface ChatState {
     sessions: ChatSession[];
     currentSessionId: string | null;
     availableNodes: NodeInfo[];
     activeNodeAddress: string | null;
     abortController: AbortController | null;
+    activePersonaId: string;
 
     // Actions
     createNewChat: () => string;
@@ -28,6 +72,7 @@ interface ChatState {
     editAndRegenerate: (sessionId: string, messageId: string, newContent: string) => Promise<void>;
     lastUsedModel: string | null;
     setLastUsedModel: (model: string | null) => void;
+    setActivePersona: (personaId: string) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -39,6 +84,11 @@ export const useChatStore = create<ChatState>()(
             activeNodeAddress: null,
             abortController: null,
             lastUsedModel: null,
+            activePersonaId: 'general',
+
+            setActivePersona: (personaId) => {
+                set({ activePersonaId: personaId });
+            },
 
             setLastUsedModel: (model) => {
                 set({ lastUsedModel: model });

@@ -3,12 +3,14 @@
 import { useEffect, useRef } from 'react';
 import { useChatStore } from '@/hooks/useChatStore';
 import { ChatMessage } from './ChatMessage';
-import { sendChatMessage } from '@/lib/api-client';
+import { sendChatMessage, Message } from '@/lib/api-client';
 import { v4 as uuidv4 } from 'uuid';
+import { PERSONAS } from '@/hooks/useChatStore';
 
 export function ChatArea() {
-    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount } = useChatStore();
+    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount, activePersonaId } = useChatStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
 
     const currentSession = sessions.find((s) => s.id === currentSessionId);
     const messages = currentSession?.messages || [];
@@ -65,6 +67,7 @@ export function ChatArea() {
                     return true;
                 }) as any,
                 activeNodeAddress,
+                { role: 'system', content: activePersona.systemPrompt },
                 (chunk) => {
                     fullContent += chunk;
                     updateMessage(currentSessionId, newAssistantId, fullContent);
@@ -154,6 +157,7 @@ export function ChatArea() {
                     return true;
                 }) as any,
                 activeNodeAddress,
+                { role: 'system', content: activePersona.systemPrompt },
                 (chunk) => {
                     fullContent += chunk;
                     updateMessage(currentSessionId, messageId, fullContent);

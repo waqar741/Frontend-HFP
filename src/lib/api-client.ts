@@ -3,18 +3,14 @@ export interface Message {
     content: string;
 }
 
-// System prompt to restrict domain to medical topics
-const SYSTEM_MESSAGE: Message = {
-    role: 'system',
-    content: `You are a specialized medical AI assistant for HealthFirstPriority. Your sole purpose is to provide accurate, professional, and helpful information related to health, medicine, medical conditions, treatments, and wellness.
-If a user asks a question that is NOT related to medical or health topics, you must politely decline to answer, stating that you are an AI assistant specialized in medical information only.
-Do not engage in general conversation, creative writing, coding, or any other non-medical tasks.
-Always prioritize patient safety and recommend seeing a healthcare professional for specific medical advice.`
-};
+// Use dynamic system message instead of hardcoded
+// Default fallback provided by the caller
+
 
 export async function sendChatMessage(
     messages: Message[],
     targetNode: string | null,
+    systemMessage: Message,
     onChunk: (chunk: string) => void,
     signal?: AbortSignal
 ): Promise<{ tokens?: number; timeMs?: number; tokensPerSec?: number; model?: string } | undefined> {
@@ -38,8 +34,7 @@ export async function sendChatMessage(
             headers,
             body: JSON.stringify({
                 model: 'Qwen2.5-1.5B-Instruct',
-                messages: [SYSTEM_MESSAGE, ...messages],
-                // messages: [...messages],
+                messages: [systemMessage, ...messages],
                 stream: true,
             }),
             signal,

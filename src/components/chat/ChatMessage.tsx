@@ -5,6 +5,7 @@ import { Copy, RotateCw, Check, X, ChevronLeft, ChevronRight } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Message, MessageVersion } from '@/types/chat';
 
 interface ChatMessageProps {
@@ -181,8 +182,10 @@ export function ChatMessage({
                 ) : (
                     /* AI Message - Full Width Left Aligned */
                     <div className="ai-message-container w-full max-w-[800px]">
-                        <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed dark:prose-p:text-foreground dark:prose-headings:text-foreground prose-code:text-primary overflow-x-auto w-full">
-                            <ReactMarkdown>{displayContent}</ReactMarkdown>
+                        <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed dark:prose-p:text-foreground dark:prose-headings:text-foreground prose-code:text-primary overflow-x-auto w-full prose-table:border-collapse prose-th:border prose-th:border-border prose-th:bg-muted prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-2">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {displayContent}
+                            </ReactMarkdown>
                             {/* Streaming cursor */}
                             {isStreaming && !isViewingOldVersion && (
                                 <span className="animate-cursor-blink inline-block w-[2px] h-[1em] bg-primary align-text-bottom ml-0.5" />

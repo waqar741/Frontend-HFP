@@ -34,9 +34,15 @@ export function Sidebar() {
     const [sessionToEdit, setSessionToEdit] = useState<string | null>(null);
     const [newTitle, setNewTitle] = useState('');
 
-    const filteredSessions = sessions.filter(session =>
-        session.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredSessions = sessions.filter(session => {
+        const query = searchQuery.toLowerCase();
+        // Match title
+        if (session.title.toLowerCase().includes(query)) return true;
+        // Match any message content
+        return session.messages.some(msg =>
+            msg.content && msg.content.toLowerCase().includes(query)
+        );
+    });
 
     const handleEditClick = (id: string, currentTitle: string) => {
         setSessionToEdit(id);

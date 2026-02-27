@@ -7,11 +7,19 @@ import { useUIStore } from '@/hooks/useUIStore';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from '@/components/layout/Sidebar';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { PERSONAS } from '@/hooks/useChatStore';
 
 import { useState } from 'react';
 
 export function ChatHeader() {
-    const { currentSessionId, sessions } = useChatStore();
+    const { currentSessionId, sessions, activePersonaId, setActivePersona } = useChatStore();
     const { toggleSidebar } = useUIStore();
     const currentSession = sessions.find(s => s.id === currentSessionId);
     const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -49,6 +57,18 @@ export function ChatHeader() {
             </div>
 
             <div className="flex items-center gap-3 text-foreground">
+                <Select value={activePersonaId} onValueChange={setActivePersona}>
+                    <SelectTrigger className="w-[180px] h-9 bg-background/50 border-border/50 text-sm focus:ring-1 focus:ring-ring focus:border-transparent">
+                        <SelectValue placeholder="Select Specialty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {PERSONAS.map(persona => (
+                            <SelectItem key={persona.id} value={persona.id} title={persona.description}>
+                                {persona.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <SettingsDialog />
             </div>
         </header>
