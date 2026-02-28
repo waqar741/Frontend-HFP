@@ -19,7 +19,7 @@ import { PERSONAS } from '@/hooks/useChatStore';
 import { useState } from 'react';
 
 export function ChatHeader() {
-    const { currentSessionId, sessions, activePersonaId, setActivePersona } = useChatStore();
+    const { currentSessionId, sessions, activePersonaId, setActivePersona, customPersonas } = useChatStore();
     const { toggleSidebar } = useUIStore();
     const currentSession = sessions.find(s => s.id === currentSessionId);
     const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
@@ -67,6 +67,19 @@ export function ChatHeader() {
                                 {persona.name}
                             </SelectItem>
                         ))}
+                        {customPersonas.length > 0 && (
+                            <>
+                                <div className="h-px bg-border my-1" />
+                                <div className="px-2 py-1">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Custom</p>
+                                </div>
+                                {customPersonas.map(cp => (
+                                    <SelectItem key={cp.id} value={cp.id}>
+                                        ✨ {cp.name}
+                                    </SelectItem>
+                                ))}
+                            </>
+                        )}
                     </SelectContent>
                 </Select>
                 <SettingsDialog />
@@ -74,3 +87,4 @@ export function ChatHeader() {
         </header>
     );
 }
+

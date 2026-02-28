@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Search, MessageSquare, MoreHorizontal, Pencil, Trash2, Download, FileText } from 'lucide-react';
+import { Plus, Search, MessageSquare, MoreHorizontal, Pencil, Trash2, Download, FileText, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,10 +23,12 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { exportChatToText, exportChatToPDF } from '@/lib/export-utils';
+import { DocumentLibrary } from '@/components/documents/DocumentLibrary';
 
 export function Sidebar() {
     const { sessions, currentSessionId, createNewChat, selectSession, deleteSession, renameSession } = useChatStore();
     const [searchQuery, setSearchQuery] = useState('');
+    const [libraryOpen, setLibraryOpen] = useState(false);
 
     // Dialog States
     const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -183,6 +185,20 @@ export function Sidebar() {
                     )}
                 </ScrollArea>
             </div>
+
+            {/* Document Library button */}
+            <div className="mt-4 pt-3 border-t border-sidebar-border shrink-0">
+                <Button
+                    variant="ghost"
+                    onClick={() => setLibraryOpen(true)}
+                    className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                >
+                    <BookOpen className="h-4 w-4" />
+                    Document Library
+                </Button>
+            </div>
+
+            <DocumentLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} />
 
             {/* Rename Dialog */}
             <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown } from 'lucide-react';
+import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -28,29 +28,26 @@ type TabId = 'general' | 'personas' | 'data';
 type ToastInfo = { message: string; type: 'success' | 'error' } | null;
 
 export function SettingsDialog() {
-    const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, customPersona, setCustomPersona, activePersonaId, setActivePersona } = useChatStore();
+    const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, customPersonas, addCustomPersona, deleteCustomPersona, activePersonaId, setActivePersona } = useChatStore();
     const { theme, setTheme } = useTheme();
 
     const [activeTab, setActiveTab] = useState<TabId>('general');
     const [isAnonymized, setIsAnonymized] = useState(false);
     const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
 
-    // Custom confirm dialog state
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [personaToDelete, setPersonaToDelete] = useState<{ id: string, name: string } | null>(null);
+    const [exportFormatToConfirm, setExportFormatToConfirm] = useState<{ label: string, fn: () => void } | null>(null);
+    const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
     const [toast, setToast] = useState<ToastInfo>(null);
 
     // Custom persona form state
-    const [personaName, setPersonaName] = useState(customPersona?.name || '');
-    const [personaPrompt, setPersonaPrompt] = useState(customPersona?.systemPrompt || '');
+    const [personaName, setPersonaName] = useState('');
+    const [personaPrompt, setPersonaPrompt] = useState('');
 
     useEffect(() => {
         setSelectedSessionIds(sessions.map(s => s.id));
     }, [sessions]);
-
-    useEffect(() => {
-        setPersonaName(customPersona?.name || '');
-        setPersonaPrompt(customPersona?.systemPrompt || '');
-    }, [customPersona]);
 
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ message, type });
@@ -101,17 +98,32 @@ export function SettingsDialog() {
             showToast('Please fill in both Name and System Prompt.', 'error');
             return;
         }
-        setCustomPersona({ name: personaName.trim(), systemPrompt: personaPrompt.trim() });
-        setActivePersona('custom');
-        showToast(`Custom persona "${personaName.trim()}" saved and activated!`);
+        if (customPersonas.length >= 3) {
+            showToast('Maximum 3 custom personas allowed. Delete one first.', 'error');
+            return;
+        }
+        const id = addCustomPersona({ name: personaName.trim(), systemPrompt: personaPrompt.trim() });
+        if (id) {
+            setActivePersona(id);
+            setPersonaName('');
+            setPersonaPrompt('');
+            showToast(`Custom persona "${personaName.trim()}" saved and activated!`);
+        }
     };
 
-    const handleClearCustomPersona = () => {
-        setCustomPersona(null);
-        setPersonaName('');
-        setPersonaPrompt('');
-        if (activePersonaId === 'custom') setActivePersona('general');
-        showToast('Custom persona removed.');
+    const handleDeleteCustomPersona = (id: string, name: string) => {
+        deleteCustomPersona(id);
+        showToast(`"${name}" persona removed.`);
+    };
+
+    const handleRestoreDefaults = () => {
+        setTheme('system');
+        setFontSize('md');
+        setEnterToSend(true);
+        setAutoScroll(true);
+        setActivePersona('general');
+        showToast('Settings restored to defaults.');
+        setRestoreConfirmOpen(false);
     };
 
     const tabs = [
@@ -141,9 +153,75 @@ export function SettingsDialog() {
                 </DialogContent>
             </Dialog>
 
+            {/* Persona Delete Confirm Dialog */}
+            <Dialog open={!!personaToDelete} onOpenChange={(open) => !open && setPersonaToDelete(null)}>
+                <DialogContent className="sm:max-w-md z-[200]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <AlertTriangle className="h-5 w-5" />
+                            Delete "{personaToDelete?.name}"?
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            This custom persona will be permanently removed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setPersonaToDelete(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={() => {
+                            if (personaToDelete) {
+                                deleteCustomPersona(personaToDelete.id);
+                                showToast(`"${personaToDelete.name}" persona removed.`);
+                            }
+                            setPersonaToDelete(null);
+                        }}>Yes, Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Export Confirm Dialog */}
+            <Dialog open={!!exportFormatToConfirm} onOpenChange={(open) => !open && setExportFormatToConfirm(null)}>
+                <DialogContent className="sm:max-w-md z-[200]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-primary">
+                            <Download className="h-5 w-5" />
+                            Export Data?
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Are you sure you want to download {selectedSessionIds.length} session{selectedSessionIds.length !== 1 ? 's' : ''} as {exportFormatToConfirm?.label}?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setExportFormatToConfirm(null)}>Cancel</Button>
+                        <Button onClick={() => {
+                            exportFormatToConfirm?.fn();
+                            setExportFormatToConfirm(null);
+                        }}>Download Now</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Restore Defaults Confirm Dialog */}
+            <Dialog open={restoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+                <DialogContent className="sm:max-w-md z-[200]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <RotateCcw className="h-5 w-5" />
+                            Restore Defaults?
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            This will reset your theme, font size, active persona, and layout behaviors back to their original settings.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setRestoreConfirmOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleRestoreDefaults}>Yes, Restore</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Toast */}
             {toast && (
-                <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2 px-5 py-3 rounded-full shadow-xl text-sm font-medium transition-all duration-300 ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-destructive text-destructive-foreground'
+                <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-5 py-3 rounded-full shadow-2xl text-sm font-medium transition-all duration-300 animate-in slide-in-from-top-4 ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-destructive text-destructive-foreground'
                     }`}>
                     <CheckCircle className="h-4 w-4 shrink-0" />
                     {toast.message}
@@ -184,6 +262,16 @@ export function SettingsDialog() {
                                 );
                             })}
                         </nav>
+                        <div className="mt-auto px-3 pb-4">
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 h-9"
+                                onClick={() => setRestoreConfirmOpen(true)}
+                            >
+                                <RotateCcw className="h-3.5 w-3.5 mr-2" />
+                                Restore Defaults
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Content */}
@@ -236,8 +324,8 @@ export function SettingsDialog() {
                                                         key={size}
                                                         onClick={() => setFontSize(size)}
                                                         className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${fontSize === size
-                                                                ? 'bg-primary text-primary-foreground border-primary'
-                                                                : 'border-border text-muted-foreground hover:bg-secondary'
+                                                            ? 'bg-primary text-primary-foreground border-primary'
+                                                            : 'border-border text-muted-foreground hover:bg-secondary'
                                                             }`}
                                                     >
                                                         {size === 'sm' ? 'Small' : size === 'md' ? 'Medium' : 'Large'}
@@ -292,7 +380,6 @@ export function SettingsDialog() {
                                     </div>
                                 )}
 
-                                {/* ── PERSONAS ────────────────────────────── */}
                                 {activeTab === 'personas' && (
                                     <div className="space-y-5">
                                         {/* Built-in Personas */}
@@ -303,9 +390,9 @@ export function SettingsDialog() {
                                                     <button
                                                         key={p.id}
                                                         onClick={() => setActivePersona(p.id)}
-                                                        className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${activePersonaId === p.id && activePersonaId !== 'custom'
-                                                                ? 'border-primary bg-primary/10 text-foreground'
-                                                                : 'border-border hover:bg-secondary/40 text-muted-foreground'
+                                                        className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${activePersonaId === p.id
+                                                            ? 'border-primary bg-primary/10 text-foreground'
+                                                            : 'border-border hover:bg-secondary/40 text-muted-foreground'
                                                             }`}
                                                     >
                                                         <div className="font-medium text-sm">{p.name}</div>
@@ -315,43 +402,78 @@ export function SettingsDialog() {
                                             </div>
                                         </div>
 
-                                        {/* Custom Persona */}
+                                        {/* Saved Custom Personas */}
+                                        {customPersonas.length > 0 && (
+                                            <div className="pt-4 border-t border-border space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-sm font-semibold text-foreground">Your Custom Personas</h3>
+                                                    <span className="text-xs text-muted-foreground">{customPersonas.length}/3</span>
+                                                </div>
+                                                {customPersonas.map(cp => (
+                                                    <div
+                                                        key={cp.id}
+                                                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors ${activePersonaId === cp.id
+                                                            ? 'border-primary bg-primary/10'
+                                                            : 'border-border hover:bg-secondary/40'
+                                                            }`}
+                                                    >
+                                                        <button
+                                                            className="flex-1 text-left min-w-0"
+                                                            onClick={() => setActivePersona(cp.id)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-medium text-foreground truncate">✨ {cp.name}</span>
+                                                                {activePersonaId === cp.id && (
+                                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Active</span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground truncate mt-0.5">{cp.systemPrompt}</p>
+                                                        </button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                                            onClick={() => setPersonaToDelete({ id: cp.id, name: cp.name })}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Create New Custom Persona */}
                                         <div className="pt-4 border-t border-border space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <h3 className="text-sm font-semibold text-foreground">Custom Persona</h3>
-                                                {customPersona && (
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${activePersonaId === 'custom' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                                        {activePersonaId === 'custom' ? 'Active' : 'Saved'}
-                                                    </span>
-                                                )}
+                                                <h3 className="text-sm font-semibold text-foreground">Create Custom Persona</h3>
+                                                <span className="text-xs text-muted-foreground">{customPersonas.length >= 3 ? 'Max reached' : `${3 - customPersonas.length} slot${3 - customPersonas.length !== 1 ? 's' : ''} left`}</span>
                                             </div>
                                             <p className="text-xs text-muted-foreground">
-                                                Create your own AI persona with a custom system prompt to bypass the built-in doctors.
+                                                Create your own AI persona with a custom system prompt. Max 3 allowed.
                                             </p>
                                             <input
                                                 type="text"
-                                                placeholder="Persona name (e.g. My Custom Doctor)"
+                                                placeholder="Persona name (e.g. My Cardiologist)"
                                                 value={personaName}
                                                 onChange={e => setPersonaName(e.target.value)}
-                                                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                                disabled={customPersonas.length >= 3}
+                                                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                                             />
                                             <textarea
-                                                placeholder="Write your custom system prompt here... (e.g. You are a cardiologist specializing in...)"
+                                                placeholder="Write your custom system prompt here..."
                                                 value={personaPrompt}
                                                 onChange={e => setPersonaPrompt(e.target.value)}
-                                                rows={5}
-                                                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                                                rows={4}
+                                                disabled={customPersonas.length >= 3}
+                                                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50"
                                             />
-                                            <div className="flex gap-2">
-                                                <Button onClick={handleSaveCustomPersona} className="flex-1">
-                                                    Save & Activate
-                                                </Button>
-                                                {customPersona && (
-                                                    <Button variant="outline" onClick={handleClearCustomPersona}>
-                                                        Remove
-                                                    </Button>
-                                                )}
-                                            </div>
+                                            <Button
+                                                onClick={handleSaveCustomPersona}
+                                                disabled={customPersonas.length >= 3 || !personaName.trim() || !personaPrompt.trim()}
+                                                className="w-full"
+                                            >
+                                                Save & Activate
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
@@ -374,7 +496,7 @@ export function SettingsDialog() {
                                             </div>
 
                                             <div className="border border-border rounded-lg p-3 bg-secondary/10 space-y-3">
-                                                <ScrollArea className="h-[90px] rounded-md border border-border bg-background p-1.5">
+                                                <ScrollArea className="h-[180px] sm:h-[190px] rounded-md border border-border bg-background p-1.5">
                                                     {sessions.length === 0 ? (
                                                         <p className="text-sm text-muted-foreground p-3 text-center">No sessions yet.</p>
                                                     ) : (
@@ -406,7 +528,7 @@ export function SettingsDialog() {
                                                         { label: 'CSV', icon: Database, fn: handleExportCsv },
                                                         { label: 'JSON', icon: FileCode, fn: handleExportJson },
                                                     ].map(({ label, icon: Icon, fn }) => (
-                                                        <Button key={label} size="sm" variant="outline" onClick={fn} disabled={selectedSessionIds.length === 0}>
+                                                        <Button key={label} size="sm" variant="outline" onClick={() => setExportFormatToConfirm({ label, fn })} disabled={selectedSessionIds.length === 0}>
                                                             <Icon className="mr-1.5 h-3.5 w-3.5" /> {label}
                                                         </Button>
                                                     ))}

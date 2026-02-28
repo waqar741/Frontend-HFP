@@ -1,129 +1,69 @@
-# Universal PDF Knowledge Library - Implementation Plan
+# Universal PDF Knowledge Library
 
-A production-grade system allowing users to upload PDFs once, store them in a universal library, and reference them in chat via `@document_name` mentions. Designed to avoid reprocessing and to minimize server load.
+A production-grade, **offline-first** system allowing users to upload PDFs once, store them in a universal browser-local library, and reference them in chat via `@document_name` mentions. Designed for absolute privacy, zero server processing costs, and instant retrieval.
 
-## Background & Context
+## Architecture: Offline-First
 
-The current codebase is a **Next.js** medical AI chat app. Messages go to local/remote AI nodes via `/api/chat`. There is an existing `/api/upload` route and a `file-service.ts`. Chat state lives in a Zustand store persisted to localStorage.
+Unlike traditional server-heavy RAG (Retrieval-Augmented Generation) pipelines, this feature runs entirely within the user's browser. 
 
-The PDF library is a **cross-session, global resource** — not tied to any single chat session.
+1. **User Uploads PDF** -> Drag & drop into the Document Library panel.
+2. **Local Hash Check** -> Computes SHA-256 of the file bytes.
+   - **Yes (Duplicate):** Returns existing document metadata instantly. 
+   - **No (New):** Extracts text locally using `pdfjs-dist`. Chunks text into segments.
+3. **Local Storage** -> Saves raw PDF blobs and text chunks into **IndexedDB**. Saves metadata (name, hash, size) into **localStorage** (via Zustand `persist`).
+4. **Chat Mentioning** -> User types `@` in chat. Autocomplete dropdown filters local documents.
+5. **Context Injection** -> When sending a message with an `@mention`, the chat frontend fetches chunks directly from IndexedDB and silently injects them as system context ahead of the LLM call.
 
-## Architecture Overview
+## The Tech Stack
 
-1. **User Uploads PDF** -> `/api/documents/upload`
-2. **Hash Check** -> Is SHA-256 hash already present?
-   - **Yes:** Return existing doc metadata. 
-   - **No:** Store raw PDF. Extract text via `pdf-parse`. Chunk text into segments. Store chunks to filesystem (`data/chunks/`). Update `data/documents.json`. Return metadata. 
-3. **Frontend Updates** -> The Library Store shows the new file.
-4. **Chat Mentioning** -> User types `@doc` in chat. Autocomplete resolver matches document IDs.
-5. **Context Injection** -> Chat frontend fetches chunks via `/api/documents/context?id=...` and injects them as system context ahead of the LLM call.
+Two lightweight, zero-dependency local stores that fit a privacy-first Next.js setup:
 
-## Data Model (src/types/document.ts)
+| Data Type | Delivery Mechanism |
+|---|---|
+| **Document Metadata** | `localStorage` (via Zustand `persist` middleware) |
+| **PDF Text Chunks** | `IndexedDB` (via `idb` wrapper in `src/lib/pdf-db.ts`) |
+| **Raw PDF Blobs** | `IndexedDB` |
+| **Text Extraction** | `pdfjs-dist` (Browser-native PDF parsing, ServiceWorker based) |
 
-```typescript
-export interface DocumentRecord {
-  id: string;            // UUID
-  name: string;          // Friendly @tag name (slugified filename)
-  originalName: string;  // "Blood_Test_Results.pdf"
-  hash: string;          // SHA-256 of file bytes — deduplication key
-  size: number;          // bytes
-  pageCount: number;
-  uploadedAt: number;    // timestamp
-  chunkCount: number;
-  storagePath: string;   // e.g. "/uploads/abc123.pdf"
-  processingStatus: 'pending' | 'ready' | 'error';
-}
+> **Note on Scaling:** Because the processing logic (hashing, extraction, chunking) is completely decoupled into `src/lib/pdf-extractor.ts`, it is trivial to add a `syncToApi()` method later to push these pre-processed, pre-chunked documents to a backend (like Vercel Blob + Postgres) once user authentication is introduced.
 
-export interface DocumentChunk {
-  docId: string;
-  index: number;
-  text: string;
-  pageNumber?: number;
-}
-```
-
-## Storage Strategy
-
-Two lightweight, zero-dependency stores that fit the current Next.js setup (no external DB required initially):
-
-| Store | Purpose | Implementation |
-|---|---|---|
-| **Document Registry** | `DocumentRecord[]` metadata | `data/documents.json` (persisted JSON file, read/written via API routes) |
-| **Chunks Store** | Full text chunks per document | `data/chunks/` directory, one file per doc: `{docId}.json` |
-| **Raw PDFs** | Original binary | `public/uploads/{hash}.pdf` |
-
-> **Note:** For Vercel/serverless deployments, swap to **Vercel Blob** (raw PDFs) + **Vercel KV** or **PlanetScale** (metadata + chunks).
-
-## Deduplication Strategy (Avoid Reprocessing)
+## Deduplication Strategy (Zero Reprocessing)
 
 Before processing any uploaded PDF:
-1. Compute **SHA-256 hash** of the raw file bytes on the server.
-2. Query the document registry for a matching hash.
+1. Compute **SHA-256 hash** of the raw file bytes using the native `crypto.subtle` browser API.
+2. Query the Zustand document store for a matching hash.
 3. If found -> return the existing `DocumentRecord` immediately (skip all processing).
-4. If not found -> proceed with text extraction and chunking.
+4. If not found -> proceed with text extraction and IndexedDB storage.
 
-This is the **most important optimization**. The same lab report uploaded twice costs zero extra processing.
-
-## Backend API Routes
-
-### 1. `src/app/api/documents/upload/route.ts`
-- **Method**: POST `multipart/form-data` with a single PDF
-- **Steps**: receive -> hash -> deduplicate check -> extract text (`pdf-parse`) -> chunk -> store -> return `DocumentRecord`
-- **Returns**: `{ document: DocumentRecord }`
-
-### 2. `src/app/api/documents/route.ts`
-- **Method**: GET -> returns all `DocumentRecord[]` (the library)
-- **Method**: DELETE `?id=...` -> removes a document and its chunks
-
-### 3. `src/app/api/documents/context/route.ts`
-- **Method**: GET `?ids=id1,id2` -> returns relevant chunks for the given document IDs 
-- **Usage**: Used just before sending a chat message. Concatenates chunk text up to a configurable token budget.
+This means if a user uploads the same 50-page lab report twice, the second upload takes 10 milliseconds and uses zero extra storage.
 
 ## Text Extraction & Chunking
 
-**Library:** `pdf-parse` (lightweight, no native binaries)
+**Library:** `pdfjs-dist` (Standard Mozilla PDF.js compiled for modern browsers)
 
 **Chunking strategy:**
-- Split extracted text into chunks of ~500 words each with 50-word overlap
-- Store `pageNumber` if the PDF parser provides it
-- Cap total chunks at 100 per document (truncate very large PDFs with a warning)
+- Split extracted text into logical blocks using token approximations.
+- Enforces an overlap between chunks (e.g., 50 words) so context isn't lost across chunk boundaries.
+- Generates a friendly `@slug` based on the original filename for easy typing.
 
-## Zustand Library Store (src/hooks/useDocumentStore.ts)
+## Zustand Library Store (`src/hooks/useDocumentStore.ts`)
 
 ```typescript
 interface DocumentStore {
-  documents: DocumentRecord[];
+  documents: DocumentRecord[];       // Persisted to localStorage
   isLoading: boolean;
-  fetchDocuments: () => Promise<void>;
-  uploadDocument: (file: File) => Promise<DocumentRecord>;
+  uploadProgress: number;
+  
+  loadDocuments: () => Promise<void>; // Hydrates state
+  uploadDocument: (file: File) => Promise<DocumentRecord | null>;
   deleteDocument: (id: string) => Promise<void>;
+  getContextForMentions: (docIds: string[]) => Promise<string>;
 }
 ```
-*Not persisted to localStorage — always fetched fresh from the API on mount.*
-
-## Frontend Components
-
-- **DocumentLibrary Panel:** A slide-out panel or Settings tab showing all uploaded documents, upload zone (drag-and-drop), status indicators, and delete buttons.
-- **DocumentUploadButton:** Standalone upload trigger (toolbar or sidebar), no prompt required.
-- **ChatInput changes:** Detect `@` character, show autocomplete dropdown, insert `@document_name`. 
-- **api-client changes:** `sendChatMessage()` gains an optional `documentIds?: string[]` parameter. Preprends fetched chunks as a special system message block.
 
 ## @Mention UX Flow
 
-1. `@` keystroke triggers a dropdown above the input showing matching document names.
-2. Arrow keys / click to select — inserts `@BloodTest2024` as a token.
-3. On send: the input parser extracts all `@mentions`, resolves them to `documentId` via the library.
-4. The resolved IDs are passed to the API client to fetch the chunks as context injection.
-
-## Indexing & Retrieval
-
-For the initial implementation, use **positional retrieval** (inject first N chunks). This is fast and zero-infrastructure.
-
-For a production upgrade, add **semantic search** using an embedding model and vector search.
-
-| Optimization | Implementation |
-|---|---|
-| **Hash deduplication** | SHA-256 check on upload, skip reprocessing |
-| **Chunk cache** | In-memory LRU cache of recently accessed chunk files |
-| **Lazy chunk loading** | Only load chunks for `@mentioned` docs |
-| **Token budget** | Cap context injection at 2500 tokens |
+1. Keystroke `@` triggers the autocomplete popover above the chat input.
+2. User types to filter the list of uploaded documents. Arrow keys / click to select.
+3. The selected document becomes an atomic blue token in the input field: `@BloodTest2024`.
+4. On submit, the system extracts the document IDs from the tokens, pulls the text chunks from IndexedDB via `getContextForMentions()`, and prepends them as a hidden system prompt before sending the user's query to the AI.

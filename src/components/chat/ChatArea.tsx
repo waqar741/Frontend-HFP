@@ -26,12 +26,13 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export function ChatArea({ onPromptSelect }: ChatAreaProps) {
-    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount, activePersonaId, fontSize, autoScroll, setAutoScroll, customPersona } = useChatStore();
+    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount, activePersonaId, fontSize, autoScroll, setAutoScroll, customPersonas } = useChatStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
-    const activePersona = activePersonaId === 'custom' && customPersona
-        ? { id: 'custom', name: customPersona.name, description: '', systemPrompt: customPersona.systemPrompt }
+    const customMatch = customPersonas.find(p => p.id === activePersonaId);
+    const activePersona = customMatch
+        ? { id: customMatch.id, name: customMatch.name, description: '', systemPrompt: customMatch.systemPrompt }
         : (PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0]);
 
     const currentSession = sessions.find((s) => s.id === currentSessionId);
@@ -244,10 +245,10 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
             {showScrollButton && (
                 <button
                     onClick={scrollToBottom}
-                    className="fixed bottom-32 right-5 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-full shadow-lg hover:opacity-90 transition-all duration-200 animate-fade-in-up"
+                    className="fixed bottom-32 right-5 z-50 flex items-center justify-center h-8 w-8 bg-primary text-primary-foreground rounded-full shadow-lg hover:opacity-90 transition-all duration-200 animate-fade-in-up"
+                    title="Scroll to bottom"
                 >
-                    <ChevronsDown className="h-3.5 w-3.5" />
-                    Scroll to bottom
+                    <ChevronsDown className="h-4 w-4" />
                 </button>
             )}
             {messages.length === 0 ? (

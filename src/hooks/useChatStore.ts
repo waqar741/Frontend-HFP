@@ -62,7 +62,7 @@ interface ChatState {
     fontSize: 'sm' | 'md' | 'lg';
     enterToSend: boolean;
     autoScroll: boolean;
-    customPersona: { name: string; systemPrompt: string } | null;
+    customPersonas: { id: string; name: string; systemPrompt: string }[];
 
     // Actions
     createNewChat: () => string;
@@ -88,6 +88,8 @@ interface ChatState {
     setFontSize: (size: 'sm' | 'md' | 'lg') => void;
     setEnterToSend: (val: boolean) => void;
     setAutoScroll: (val: boolean) => void;
+    addCustomPersona: (persona: { name: string; systemPrompt: string }) => string | null;
+    deleteCustomPersona: (id: string) => void;
     setCustomPersona: (persona: { name: string; systemPrompt: string } | null) => void;
 }
 
@@ -106,12 +108,37 @@ export const useChatStore = create<ChatState>()(
             fontSize: 'md',
             enterToSend: true,
             autoScroll: true,
-            customPersona: null,
+            customPersonas: [],
 
             setFontSize: (size) => set({ fontSize: size }),
             setEnterToSend: (val) => set({ enterToSend: val }),
             setAutoScroll: (val) => set({ autoScroll: val }),
-            setCustomPersona: (persona) => set({ customPersona: persona }),
+
+            addCustomPersona: (persona) => {
+                const state = get();
+                if (state.customPersonas.length >= 3) return null;
+                const id = 'custom-' + Date.now();
+                const newPersona = { id, ...persona };
+                set({ customPersonas: [...state.customPersonas, newPersona] });
+                return id;
+            },
+
+            deleteCustomPersona: (id) => {
+                set(state => {
+                    const filtered = state.customPersonas.filter(p => p.id !== id);
+                    return {
+                        customPersonas: filtered,
+                        activePersonaId: state.activePersonaId === id ? 'general' : state.activePersonaId,
+                    };
+                });
+            },
+
+            // Legacy compat — wraps addCustomPersona
+            setCustomPersona: (persona) => {
+                if (!persona) return;
+                const id = get().addCustomPersona(persona);
+                if (id) set({ activePersonaId: id });
+            },
 
             setActivePersona: (personaId) => {
                 set({ activePersonaId: personaId });
