@@ -30,6 +30,7 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
     const customMatch = customPersonas.find(p => p.id === activePersonaId);
     const activePersona = customMatch
         ? { id: customMatch.id, name: customMatch.name, description: '', systemPrompt: customMatch.systemPrompt }
@@ -45,17 +46,20 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
         const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
         if (!isAtBottom) {
             setShowScrollButton(true);
-            setAutoScroll(false);
+            setUserHasScrolledUp(true);
+        } else {
+            setShowScrollButton(false);
+            setUserHasScrolledUp(false);
         }
-    }, [setAutoScroll]);
+    }, []);
 
     // Auto-scroll to bottom only if autoScroll is enabled
     useEffect(() => {
-        if (autoScroll) {
+        if (autoScroll && !userHasScrolledUp) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             setShowScrollButton(false);
         }
-    }, [messages, autoScroll]);
+    }, [messages, autoScroll, userHasScrolledUp]);
 
     const handleEdit = async (messageId: string, newContent: string) => {
         if (!currentSessionId) return;
@@ -230,7 +234,7 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
     };
 
     const scrollToBottom = () => {
-        setAutoScroll(true);
+        setUserHasScrolledUp(false);
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         setShowScrollButton(false);
     };
