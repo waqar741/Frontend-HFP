@@ -16,9 +16,11 @@ interface ChatInputProps {
 export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = {}) {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration, activePersonaId } = useChatStore();
+    const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration, activePersonaId, enterToSend, customPersona } = useChatStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
+    const activePersona = activePersonaId === 'custom' && customPersona
+        ? { id: 'custom', name: customPersona.name, description: '', systemPrompt: customPersona.systemPrompt }
+        : (PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0]);
 
     // Handle initial prompt from suggestions
     useEffect(() => {
@@ -140,10 +142,20 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
     };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (!input.trim() || isLoading) return;
-            handleSend();
+        if (enterToSend) {
+            // Default: Enter sends, Shift+Enter = newline
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!input.trim() || isLoading) return;
+                handleSend();
+            }
+        } else {
+            // Reversed: Shift+Enter sends, Enter = newline
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                if (!input.trim() || isLoading) return;
+                handleSend();
+            }
         }
     };
 
@@ -212,9 +224,19 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
             {/* Helper text - subtle like Web-UI */}
             <div className="mt-1.5 text-center hidden sm:block">
                 <p className="text-xs text-muted-foreground/60">
-                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> to send
-                    <span className="mx-2">·</span>
-                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> for new line
+                    {enterToSend ? (
+                        <>
+                            <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> to send
+                            <span className="mx-2">·</span>
+                            <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> for new line
+                        </>
+                    ) : (
+                        <>
+                            <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> to send
+                            <span className="mx-2">·</span>
+                            <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> for new line
+                        </>
+                    )}
                 </p>
             </div>
         </div>

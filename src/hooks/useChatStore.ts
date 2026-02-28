@@ -58,6 +58,12 @@ interface ChatState {
     abortController: AbortController | null;
     activePersonaId: string;
 
+    // User preferences
+    fontSize: 'sm' | 'md' | 'lg';
+    enterToSend: boolean;
+    autoScroll: boolean;
+    customPersona: { name: string; systemPrompt: string } | null;
+
     // Actions
     createNewChat: () => string;
     selectSession: (sessionId: string) => void;
@@ -79,6 +85,10 @@ interface ChatState {
     setActivePersona: (personaId: string) => void;
     clearAllSessions: () => void;
     importSessions: (importedSessions: ChatSession[]) => void;
+    setFontSize: (size: 'sm' | 'md' | 'lg') => void;
+    setEnterToSend: (val: boolean) => void;
+    setAutoScroll: (val: boolean) => void;
+    setCustomPersona: (persona: { name: string; systemPrompt: string } | null) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -91,6 +101,17 @@ export const useChatStore = create<ChatState>()(
             abortController: null,
             lastUsedModel: null,
             activePersonaId: 'general',
+
+            // User preferences (with defaults)
+            fontSize: 'md',
+            enterToSend: true,
+            autoScroll: true,
+            customPersona: null,
+
+            setFontSize: (size) => set({ fontSize: size }),
+            setEnterToSend: (val) => set({ enterToSend: val }),
+            setAutoScroll: (val) => set({ autoScroll: val }),
+            setCustomPersona: (persona) => set({ customPersona: persona }),
 
             setActivePersona: (personaId) => {
                 set({ activePersonaId: personaId });

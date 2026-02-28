@@ -1,15 +1,22 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatStore } from '@/hooks/useChatStore';
 import { ChatMessage } from './ChatMessage';
 import { sendChatMessage, Message } from '@/lib/api-client';
 import { v4 as uuidv4 } from 'uuid';
 import { PERSONAS } from '@/hooks/useChatStore';
+import { ChevronsDown } from 'lucide-react';
 
 interface ChatAreaProps {
     onPromptSelect?: (prompt: string) => void;
 }
+
+const FONT_SIZE_CLASS: Record<string, string> = {
+    sm: 'text-sm',
+    md: 'text-base',
+    lg: 'text-lg',
+};
 
 const SUGGESTED_PROMPTS = [
     { title: "Review Lab Results", prompt: "Can you help me understand my recent blood test results? My doctor said my LDL cholesterol is slightly high." },
@@ -19,17 +26,35 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export function ChatArea({ onPromptSelect }: ChatAreaProps) {
-    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount, activePersonaId } = useChatStore();
+    const { currentSessionId, sessions, addMessage, updateMessage, deleteMessage, editAndRegenerate, activeNodeAddress, availableNodes, incrementRegenerationCount, incrementEditCount, activePersonaId, fontSize, autoScroll, setAutoScroll, customPersona } = useChatStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const activePersona = PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0];
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [showScrollButton, setShowScrollButton] = useState(false);
+    const activePersona = activePersonaId === 'custom' && customPersona
+        ? { id: 'custom', name: customPersona.name, description: '', systemPrompt: customPersona.systemPrompt }
+        : (PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0]);
 
     const currentSession = sessions.find((s) => s.id === currentSessionId);
     const messages = currentSession?.messages || [];
 
-    // Auto-scroll to bottom
+    // Detect if user has scrolled up
+    const handleScroll = useCallback(() => {
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        if (!isAtBottom) {
+            setShowScrollButton(true);
+            setAutoScroll(false);
+        }
+    }, [setAutoScroll]);
+
+    // Auto-scroll to bottom only if autoScroll is enabled
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+        if (autoScroll) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setShowScrollButton(false);
+        }
+    }, [messages, autoScroll]);
 
     const handleEdit = async (messageId: string, newContent: string) => {
         if (!currentSessionId) return;
@@ -203,8 +228,28 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
         deleteMessage(currentSessionId, messageId);
     };
 
+    const scrollToBottom = () => {
+        setAutoScroll(true);
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setShowScrollButton(false);
+    };
+
     return (
-        <div className="flex-1 overflow-y-auto chat-scroll-area">
+        <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className={`flex-1 overflow-y-auto chat-scroll-area ${FONT_SIZE_CLASS[fontSize] || 'text-base'}`}
+        >
+            {/* Floating Scroll-to-bottom button */}
+            {showScrollButton && (
+                <button
+                    onClick={scrollToBottom}
+                    className="fixed bottom-32 right-5 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-full shadow-lg hover:opacity-90 transition-all duration-200 animate-fade-in-up"
+                >
+                    <ChevronsDown className="h-3.5 w-3.5" />
+                    Scroll to bottom
+                </button>
+            )}
             {messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center p-4 text-center max-w-3xl mx-auto animate-fade-in-up">
                     <div className="bg-primary/10 p-4 rounded-full mb-6">

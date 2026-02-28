@@ -155,7 +155,11 @@ export function ChatMessage({
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                                    <div className="prose prose-sm max-w-none prose-invert leading-relaxed [&_*]:text-white [&_p]:my-0.5">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {message.content}
+                                        </ReactMarkdown>
+                                    </div>
                                 )}
                             </div>
 
@@ -163,7 +167,7 @@ export function ChatMessage({
                             {!isEditing && (
                                 <div className="message-actions flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <span className="text-[10px] text-muted-foreground mr-2 font-medium">
-                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                                     </span>
                                     {onEdit && (
                                         <Button
@@ -222,7 +226,7 @@ export function ChatMessage({
                                     <div className="hidden sm:block h-3.5 w-px bg-border shrink-0" />
 
                                     <span className="text-[10px] text-muted-foreground font-medium">
-                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                                     </span>
 
                                     {displayStats && (
