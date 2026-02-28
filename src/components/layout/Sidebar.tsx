@@ -160,10 +160,10 @@ export function Sidebar() {
                                                     <Pencil className="mr-2 h-4 w-4" />
                                                     Edit
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExportTxt(session.id); }}>
+                                                {/* <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExportTxt(session.id); }}>
                                                     <FileText className="mr-2 h-4 w-4" />
                                                     Export as TXT
-                                                </DropdownMenuItem>
+                                                </DropdownMenuItem> */}
                                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExportPdf(session.id); }}>
                                                     <Download className="mr-2 h-4 w-4" />
                                                     Export as PDF

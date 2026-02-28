@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw } from 'lucide-react';
+import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -16,6 +16,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogClose,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
@@ -149,7 +150,7 @@ export function SettingsDialog() {
                             This will permanently delete <strong>all</strong> chat sessions and cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="p-6 pt-2 flex-col sm:flex-row gap-2">
+                    <DialogFooter className="p-6 pt-2 flex-col-reverse sm:flex-row gap-2">
                         <Button variant="outline" onClick={() => setConfirmOpen(false)} className="sm:flex-1">Cancel</Button>
                         <Button variant="destructive" onClick={handleConfirmClear} className="sm:flex-1">Yes, Delete Everything</Button>
                     </DialogFooter>
@@ -170,7 +171,7 @@ export function SettingsDialog() {
                             This custom persona will be permanently removed.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="p-6 pt-2 flex-col sm:flex-row gap-2">
+                    <DialogFooter className="p-6 pt-2 flex-col-reverse sm:flex-row gap-2">
                         <Button variant="outline" onClick={() => setPersonaToDelete(null)} className="sm:flex-1">Cancel</Button>
                         <Button variant="destructive" onClick={() => {
                             if (personaToDelete) {
@@ -197,7 +198,7 @@ export function SettingsDialog() {
                             Download {selectedSessionIds.length} session{selectedSessionIds.length !== 1 ? 's' : ''} as {exportFormatToConfirm?.label}?
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="p-6 pt-2 flex-col sm:flex-row gap-2">
+                    <DialogFooter className="p-6 pt-2 flex-col-reverse sm:flex-row gap-2">
                         <Button variant="outline" onClick={() => setExportFormatToConfirm(null)} className="sm:flex-1">Cancel</Button>
                         <Button onClick={() => {
                             exportFormatToConfirm?.fn();
@@ -221,7 +222,7 @@ export function SettingsDialog() {
                             This will reset your theme, font size, active persona, and layout behaviors back to their original settings.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="p-6 pt-2 flex-col sm:flex-row gap-2">
+                    <DialogFooter className="p-6 pt-2 flex-col-reverse sm:flex-row gap-2">
                         <Button variant="outline" onClick={() => setRestoreConfirmOpen(false)} className="sm:flex-1">Cancel</Button>
                         <Button onClick={handleRestoreDefaults} className="sm:flex-1">Yes, Restore</Button>
                     </DialogFooter>
@@ -246,18 +247,25 @@ export function SettingsDialog() {
                         <Settings className="h-5 w-5" />
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-background sm:rounded-2xl border-border text-foreground w-[95vw] sm:max-w-3xl md:max-w-4xl p-0 overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-[680px] shadow-2xl">
+                <DialogContent showCloseButton={false} className="bg-background sm:rounded-2xl border-border text-foreground w-[95vw] sm:max-w-3xl md:max-w-4xl p-0 overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-[680px] shadow-2xl">
+
+                    {/* Universal Close Button */}
+                    <DialogClose asChild>
+                        <Button variant="ghost" size="icon" className="absolute right-3 top-3 z-50 h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </DialogClose>
 
                     {/* Sidebar - Desktop: show labels, Mobile: icons only scrollable top bar */}
                     <div className="shrink-0 w-full md:w-64 bg-muted/20 border-b md:border-b-0 md:border-r border-border/50 flex flex-col z-10">
-                        <div className="p-4 md:p-6 pb-2 md:pb-6">
+                        <div className="px-4 pt-4 pb-1 md:p-6 md:pb-6 pr-12 md:pr-6">
                             <DialogTitle className="text-xl font-bold tracking-tight">Settings</DialogTitle>
                             <DialogDescription className="text-xs text-muted-foreground mt-1.5 hidden md:block">
                                 Manage your workspace preferences.
                             </DialogDescription>
                         </div>
 
-                        <nav className="px-3 pb-3 md:px-4 md:pb-0 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible scrollbar-hide md:flex-1 w-full">
+                        <nav className="px-3 pb-2 md:px-4 md:pb-0 flex md:flex-col gap-1.5 overflow-x-auto scrollbar-hide md:flex-1 w-full relative">
                             {tabs.map((tab) => {
                                 const Icon = tab.icon;
                                 const isActive = activeTab === tab.id;
@@ -294,9 +302,9 @@ export function SettingsDialog() {
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 flex flex-col min-h-0 bg-background relative">
-                        <div className="p-4 md:p-6 pb-4 border-b border-border/50 shrink-0 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2.5">
+                    <div className="flex-1 flex flex-col min-h-0 bg-background relative mt-2 md:mt-0">
+                        <div className="px-4 py-3 md:p-6 md:pb-4 border-b border-border/50 shrink-0 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+                            <h2 className="text-[17px] md:text-lg font-semibold text-foreground flex items-center gap-2.5">
                                 {(() => {
                                     const Icon = tabs.find(t => t.id === activeTab)?.icon as React.ElementType;
                                     return <Icon className="h-5 w-5 text-primary/80" />;
