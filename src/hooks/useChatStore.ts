@@ -77,6 +77,8 @@ interface ChatState {
     lastUsedModel: string | null;
     setLastUsedModel: (model: string | null) => void;
     setActivePersona: (personaId: string) => void;
+    clearAllSessions: () => void;
+    importSessions: (importedSessions: ChatSession[]) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -241,6 +243,22 @@ export const useChatStore = create<ChatState>()(
                     return {
                         sessions: newSessions,
                         currentSessionId: nextSessionId
+                    };
+                });
+            },
+
+            clearAllSessions: () => {
+                set({ sessions: [], currentSessionId: null });
+            },
+
+            importSessions: (importedSessions: ChatSession[]) => {
+                set((state) => {
+                    // Simple merge: append imported sessions that don't already exist
+                    const existingIds = new Set(state.sessions.map(s => s.id));
+                    const newSessions = importedSessions.filter(s => !existingIds.has(s.id));
+
+                    return {
+                        sessions: [...newSessions, ...state.sessions]
                     };
                 });
             },

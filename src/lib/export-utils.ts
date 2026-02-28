@@ -364,6 +364,30 @@ export function exportAllChatsToCSV(sessions: ChatSession[], isAnonymized: boole
     triggerDownload(content, filename, 'text/csv');
 }
 
+// ─── JSON Export ──────────────────────────────────────────────────────────────
+
+export function exportAllChatsToJSON(sessions: ChatSession[], isAnonymized: boolean = false) {
+    if (!sessions || sessions.length === 0) return;
+
+    const filename = `HFP-Records-${new Date().toISOString().split('T')[0]}.json`;
+
+    // Clone sessions to avoid mutating original state if we need to anonymize
+    let exportData = sessions;
+
+    if (isAnonymized) {
+        exportData = sessions.map(session => ({
+            ...session,
+            messages: session.messages.map(msg => ({
+                ...msg,
+                content: anonymizeText(msg.content)
+            }))
+        }));
+    }
+
+    const content = JSON.stringify(exportData, null, 2);
+    triggerDownload(content, filename, 'application/json');
+}
+
 // ─── Shared Download Helper ──────────────────────────────────────────────────
 
 function triggerDownload(content: string, filename: string, mimeType: string) {
