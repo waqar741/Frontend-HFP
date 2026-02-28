@@ -234,18 +234,21 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
                 <div className="pb-4">
                     {/* Centered container with max width */}
                     <div className="max-w-4xl mx-auto">
-                        {messages.map((message, index) => (
-                            <ChatMessage
-                                key={message.id}
-                                message={message}
-                                isLast={index === messages.length - 1}
-                                modelName={message.modelName}
-                                onEdit={message.role === 'user' ? (newContent) => handleEdit(message.id, newContent) : undefined}
-                                onRegenerate={message.role === 'assistant' && index === messages.length - 1 ? () => handleRegenerate(message.id) : undefined}
-                                onCopy={handleCopy}
-                                onDelete={() => handleDelete(message.id)}
-                            />
-                        ))}
+                        {(() => {
+                            const lastUserMessageIndex = messages.map(m => m.role).lastIndexOf('user');
+                            return messages.map((message, index) => (
+                                <ChatMessage
+                                    key={message.id}
+                                    message={message}
+                                    isLast={index === messages.length - 1}
+                                    modelName={message.modelName}
+                                    onEdit={message.role === 'user' && index === lastUserMessageIndex ? (newContent) => handleEdit(message.id, newContent) : undefined}
+                                    onRegenerate={message.role === 'assistant' && index === messages.length - 1 && (message.regenerationCount || 0) < 1 ? () => handleRegenerate(message.id) : undefined}
+                                    onCopy={handleCopy}
+                                    onDelete={() => handleDelete(message.id)}
+                                />
+                            ));
+                        })()}
                     </div>
                     <div ref={messagesEndRef} />
                 </div>

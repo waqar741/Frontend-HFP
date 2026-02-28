@@ -162,15 +162,17 @@ export function ChatMessage({
                             {/* Action Buttons - User Messages */}
                             {!isEditing && (
                                 <div className="message-actions flex gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => setIsEditing(true)}
-                                        className="h-6 w-6 text-muted-foreground hover:text-foreground transition-colors duration-150"
-                                        title="Edit message"
-                                    >
-                                        <Pen className="h-3 w-3" />
-                                    </Button>
+                                    {onEdit && (
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => setIsEditing(true)}
+                                            className="h-6 w-6 text-muted-foreground hover:text-foreground transition-colors duration-150"
+                                            title="Edit message"
+                                        >
+                                            <Pen className="h-3 w-3" />
+                                        </Button>
+                                    )}
                                     <Button
                                         size="icon"
                                         variant="ghost"
