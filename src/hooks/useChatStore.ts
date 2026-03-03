@@ -62,6 +62,7 @@ interface ChatState {
     fontSize: 'sm' | 'md' | 'lg';
     enterToSend: boolean;
     autoScroll: boolean;
+    voicePreference: 'female' | 'male' | 'default';
     customPersonas: { id: string; name: string; systemPrompt: string; promptHistory?: string[] }[];
 
     // Actions
@@ -88,6 +89,7 @@ interface ChatState {
     setFontSize: (size: 'sm' | 'md' | 'lg') => void;
     setEnterToSend: (val: boolean) => void;
     setAutoScroll: (val: boolean) => void;
+    setVoicePreference: (val: 'female' | 'male' | 'default') => void;
     addCustomPersona: (persona: { name: string; systemPrompt: string }) => string | null;
     deleteCustomPersona: (id: string) => void;
     editCustomPersona: (id: string, persona: { name: string; systemPrompt: string }) => void;
@@ -109,11 +111,13 @@ export const useChatStore = create<ChatState>()(
             fontSize: 'md',
             enterToSend: true,
             autoScroll: true,
+            voicePreference: 'default',
             customPersonas: [],
 
             setFontSize: (size) => set({ fontSize: size }),
             setEnterToSend: (val) => set({ enterToSend: val }),
             setAutoScroll: (val) => set({ autoScroll: val }),
+            setVoicePreference: (val) => set({ voicePreference: val }),
 
             addCustomPersona: (persona) => {
                 const state = get();

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X, Pencil } from 'lucide-react';
+import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X, Pencil, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -30,7 +30,7 @@ type TabId = 'general' | 'personas' | 'data';
 type ToastInfo = { message: string; type: 'success' | 'error' } | null;
 
 export function SettingsDialog() {
-    const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, customPersonas, addCustomPersona, deleteCustomPersona, editCustomPersona, activePersonaId, setActivePersona } = useChatStore();
+    const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, voicePreference, setVoicePreference, customPersonas, addCustomPersona, deleteCustomPersona, editCustomPersona, activePersonaId, setActivePersona } = useChatStore();
     const { theme, setTheme } = useTheme();
 
     const [activeTab, setActiveTab] = useState<TabId>('general');
@@ -159,6 +159,7 @@ export function SettingsDialog() {
         setFontSize('md');
         setEnterToSend(true);
         setAutoScroll(true);
+        setVoicePreference('default');
         setActivePersona('general');
         showToast('Settings restored to defaults.');
         setRestoreConfirmOpen(false);
@@ -442,6 +443,27 @@ export function SettingsDialog() {
                                                 checked={autoScroll}
                                                 onCheckedChange={setAutoScroll}
                                             />
+                                        </div>
+
+                                        {/* Voice Preference */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/60 bg-card hover:border-border transition-colors">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                                                    <h3 className="text-sm font-semibold text-foreground">Voice Preference</h3>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Select voice gender for messages read aloud.</p>
+                                            </div>
+                                            <Select value={voicePreference} onValueChange={(v: any) => setVoicePreference(v)}>
+                                                <SelectTrigger className="w-full sm:w-[180px] bg-background border-border">
+                                                    <SelectValue placeholder="Select voice" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="default">Default</SelectItem>
+                                                    <SelectItem value="female">Female</SelectItem>
+                                                    <SelectItem value="male">Male</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
 
                                     </div>

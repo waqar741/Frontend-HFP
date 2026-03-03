@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Copy, RotateCw, Check, X, ChevronLeft, ChevronRight, Pen, Play, Square, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, MessageVersion } from '@/types/chat';
+import { useChatStore } from '@/hooks/useChatStore';
 
 interface ChatMessageProps {
     message: Message;
@@ -35,6 +36,7 @@ export function ChatMessage({
     const [viewingVersionIndex, setViewingVersionIndex] = useState<number | undefined>(undefined);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const { voicePreference } = useChatStore();
     const messageRef = useRef<HTMLDivElement>(null);
     const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -132,6 +134,41 @@ export function ChatMessage({
         // Start new speech
         window.speechSynthesis.cancel(); // Stop any current speech
         const utterance = new SpeechSynthesisUtterance(displayContent);
+
+        // Find preferred voice (try to match gender preference)
+        if (voicePreference && voicePreference !== 'default') {
+            const voices = window.speechSynthesis.getVoices();
+            let preferredVoice;
+
+            if (voicePreference === 'female') {
+                preferredVoice = voices.find(v =>
+                    v.name.toLowerCase().includes('female') ||
+                    v.name.toLowerCase().includes('zira') ||
+                    v.name.toLowerCase().includes('samantha') ||
+                    v.name.toLowerCase().includes('victoria') ||
+                    v.name.toLowerCase().includes('karen') ||
+                    v.name.toLowerCase().includes('moira') ||
+                    v.name.toLowerCase().includes('tessa') ||
+                    v.name.toLowerCase().includes('veena') ||
+                    v.name.toLowerCase().includes('lisa') ||
+                    v.name.toLowerCase().includes('hazel')
+                );
+            } else if (voicePreference === 'male') {
+                preferredVoice = voices.find(v =>
+                    v.name.toLowerCase().includes('male') ||
+                    v.name.toLowerCase().includes('david') ||
+                    v.name.toLowerCase().includes('alex') ||
+                    v.name.toLowerCase().includes('daniel') ||
+                    v.name.toLowerCase().includes('tom') ||
+                    v.name.toLowerCase().includes('oliver') ||
+                    v.name.toLowerCase().includes('george')
+                );
+            }
+
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+            }
+        }
 
         utterance.onstart = () => {
             setIsPlaying(true);
