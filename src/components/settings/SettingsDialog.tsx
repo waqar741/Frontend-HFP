@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X } from 'lucide-react';
+import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -30,7 +30,7 @@ type TabId = 'general' | 'personas' | 'data';
 type ToastInfo = { message: string; type: 'success' | 'error' } | null;
 
 export function SettingsDialog() {
-    const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, customPersonas, addCustomPersona, deleteCustomPersona, activePersonaId, setActivePersona } = useChatStore();
+    const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, customPersonas, addCustomPersona, deleteCustomPersona, editCustomPersona, activePersonaId, setActivePersona } = useChatStore();
     const { theme, setTheme } = useTheme();
 
     const [activeTab, setActiveTab] = useState<TabId>('general');
@@ -46,6 +46,8 @@ export function SettingsDialog() {
     // Custom persona form state
     const [personaName, setPersonaName] = useState('');
     const [personaPrompt, setPersonaPrompt] = useState('');
+    const [editingPersonaId, setEditingPersonaId] = useState<string | null>(null);
+    const [viewingHistoryIdx, setViewingHistoryIdx] = useState<number>(0);
 
     useEffect(() => {
         setSelectedSessionIds(sessions.map(s => s.id));
@@ -100,6 +102,18 @@ export function SettingsDialog() {
             showToast('Please fill in both Name and System Prompt.', 'error');
             return;
         }
+
+        if (editingPersonaId) {
+            editCustomPersona(editingPersonaId, { name: personaName.trim(), systemPrompt: personaPrompt.trim() });
+            setActivePersona(editingPersonaId);
+            setPersonaName('');
+            setPersonaPrompt('');
+            setEditingPersonaId(null);
+            setViewingHistoryIdx(0);
+            showToast(`Custom persona "${personaName.trim()}" updated and activated!`);
+            return;
+        }
+
         if (customPersonas.length >= 3) {
             showToast('Maximum 3 custom personas allowed. Delete one first.', 'error');
             return;
@@ -109,12 +123,34 @@ export function SettingsDialog() {
             setActivePersona(id);
             setPersonaName('');
             setPersonaPrompt('');
+            setViewingHistoryIdx(0);
             showToast(`Custom persona "${personaName.trim()}" saved and activated!`);
         }
     };
 
+    const handleEditCustomPersonaClick = (cp: { id: string, name: string, systemPrompt: string, promptHistory?: string[] }) => {
+        setEditingPersonaId(cp.id);
+        setPersonaName(cp.name);
+
+        const history = cp.promptHistory || [cp.systemPrompt];
+        setViewingHistoryIdx(history.length - 1); // Start at latest
+        setPersonaPrompt(history[history.length - 1]);
+
+        setActiveTab('personas'); // Ensure we are on the personas tab
+    };
+
+    const handleCancelEdit = () => {
+        setEditingPersonaId(null);
+        setPersonaName('');
+        setPersonaPrompt('');
+        setViewingHistoryIdx(0);
+    };
+
     const handleDeleteCustomPersona = (id: string, name: string) => {
         deleteCustomPersona(id);
+        if (editingPersonaId === id) {
+            handleCancelEdit();
+        }
         showToast(`"${name}" persona removed.`);
     };
 
@@ -413,7 +449,7 @@ export function SettingsDialog() {
 
                                 {/* ── PERSONAS ─────────────────────────────── */}
                                 {activeTab === 'personas' && (
-                                    <div className="space-y-6">
+                                    <div className="space-y-6 w-full min-w-0">
                                         {/* Built-in Personas */}
                                         <div className="space-y-3">
                                             <h3 className="text-sm font-semibold text-foreground px-1">Built-in Personas</h3>
@@ -438,17 +474,17 @@ export function SettingsDialog() {
 
                                         {/* Saved Custom Personas */}
                                         {customPersonas.length > 0 && (
-                                            <div className="space-y-3 pt-2">
+                                            <div className="space-y-3 pt-2 w-full min-w-0">
                                                 <div className="flex items-center justify-between px-1">
                                                     <h3 className="text-sm font-semibold text-foreground">Your Custom Personas</h3>
                                                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{customPersonas.length}/3</span>
                                                 </div>
-                                                <div className="grid gap-3">
+                                                <div className="flex flex-col gap-3 w-full min-w-0">
                                                     {customPersonas.map(cp => (
                                                         <div
                                                             key={cp.id}
                                                             className={cn(
-                                                                "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all",
+                                                                "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all w-full min-w-0 overflow-hidden",
                                                                 activePersonaId === cp.id
                                                                     ? 'border-primary bg-primary/5 shadow-sm'
                                                                     : 'border-border/60 bg-card hover:border-border'
@@ -458,22 +494,32 @@ export function SettingsDialog() {
                                                                 className="flex-1 text-left min-w-0"
                                                                 onClick={() => setActivePersona(cp.id)}
                                                             >
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-sm font-semibold text-foreground truncate">✨ {cp.name}</span>
+                                                                <div className="flex items-center gap-2 min-w-0 w-full">
+                                                                    <span className="text-sm font-semibold text-foreground truncate min-w-0">✨ {cp.name}</span>
                                                                     {activePersonaId === cp.id && (
-                                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold tracking-wide uppercase">Active</span>
+                                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold tracking-wide uppercase shrink-0">Active</span>
                                                                     )}
                                                                 </div>
-                                                                <p className="text-xs text-muted-foreground truncate mt-1">{cp.systemPrompt}</p>
+                                                                <p className="text-xs text-muted-foreground mt-1 w-full break-words whitespace-pre-wrap line-clamp-3">{cp.systemPrompt}</p>
                                                             </button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors rounded-lg"
-                                                                onClick={() => setPersonaToDelete({ id: cp.id, name: cp.name })}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors rounded-lg"
+                                                                    onClick={() => handleEditCustomPersonaClick(cp)}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors rounded-lg"
+                                                                    onClick={() => setPersonaToDelete({ id: cp.id, name: cp.name })}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -484,11 +530,15 @@ export function SettingsDialog() {
                                         <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <h3 className="text-sm font-semibold text-foreground">Create Custom Persona</h3>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">Design a persona with custom instructions.</p>
+                                                    <h3 className="text-sm font-semibold text-foreground">
+                                                        {editingPersonaId ? 'Edit Custom Persona' : 'Create Custom Persona'}
+                                                    </h3>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        {editingPersonaId ? 'Update your persona instructions.' : 'Design a persona with custom instructions.'}
+                                                    </p>
                                                 </div>
                                                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                                    {customPersonas.length >= 3 ? 'Max reached' : `${3 - customPersonas.length} slot${3 - customPersonas.length !== 1 ? 's' : ''} left`}
+                                                    {!editingPersonaId && customPersonas.length >= 3 ? 'Max reached' : (!editingPersonaId ? `${3 - customPersonas.length} slot${3 - customPersonas.length !== 1 ? 's' : ''} left` : 'Editing')}
                                                 </span>
                                             </div>
 
@@ -498,24 +548,69 @@ export function SettingsDialog() {
                                                     placeholder="Persona name (e.g. My Cardiologist)"
                                                     value={personaName}
                                                     onChange={e => setPersonaName(e.target.value)}
-                                                    disabled={customPersonas.length >= 3}
+                                                    disabled={!editingPersonaId && customPersonas.length >= 3}
                                                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-shadow"
                                                 />
+
                                                 <textarea
                                                     placeholder="Write your custom system prompt here..."
                                                     value={personaPrompt}
-                                                    onChange={e => setPersonaPrompt(e.target.value)}
+                                                    onChange={e => {
+                                                        setPersonaPrompt(e.target.value);
+                                                        // If editing and we start typing, we are effectively on a "new" draft of the current viewed state
+                                                        // But let's just keep it simple and update the text. On save, it appends to history.
+                                                    }}
                                                     rows={4}
-                                                    disabled={customPersonas.length >= 3}
+                                                    disabled={!editingPersonaId && customPersonas.length >= 3}
                                                     className="w-full px-4 py-3 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none disabled:opacity-50 transition-shadow"
                                                 />
-                                                <Button
-                                                    onClick={handleSaveCustomPersona}
-                                                    disabled={customPersonas.length >= 3 || !personaName.trim() || !personaPrompt.trim()}
-                                                    className="w-full rounded-lg"
-                                                >
-                                                    Save & Activate
-                                                </Button>
+
+                                                {editingPersonaId && (() => {
+                                                    const editingPersona = customPersonas.find(p => p.id === editingPersonaId);
+                                                    const history = editingPersona?.promptHistory || [editingPersona?.systemPrompt || ''];
+                                                    if (history.length > 1) {
+                                                        return (
+                                                            <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border/50">
+                                                                <span>History ({viewingHistoryIdx + 1}/{history.length})</span>
+                                                                <div className="flex gap-1">
+                                                                    <Button
+                                                                        variant="ghost" size="icon" className="h-6 w-6" disabled={viewingHistoryIdx === 0}
+                                                                        onClick={() => {
+                                                                            setViewingHistoryIdx(prev => prev - 1);
+                                                                            setPersonaPrompt(history[viewingHistoryIdx - 1]);
+                                                                        }}
+                                                                    >&lt;</Button>
+                                                                    <Button
+                                                                        variant="ghost" size="icon" className="h-6 w-6" disabled={viewingHistoryIdx === history.length - 1}
+                                                                        onClick={() => {
+                                                                            setViewingHistoryIdx(prev => prev + 1);
+                                                                            setPersonaPrompt(history[viewingHistoryIdx + 1]);
+                                                                        }}
+                                                                    >&gt;</Button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                                <div className="flex gap-2">
+                                                    {editingPersonaId && (
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={handleCancelEdit}
+                                                            className="flex-1 rounded-lg"
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        onClick={handleSaveCustomPersona}
+                                                        disabled={(!editingPersonaId && customPersonas.length >= 3) || !personaName.trim() || !personaPrompt.trim()}
+                                                        className={cn("rounded-lg", editingPersonaId ? "flex-1" : "w-full")}
+                                                    >
+                                                        {editingPersonaId ? 'Update & Activate' : 'Save & Activate'}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

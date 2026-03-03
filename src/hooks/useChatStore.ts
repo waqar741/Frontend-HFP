@@ -62,7 +62,7 @@ interface ChatState {
     fontSize: 'sm' | 'md' | 'lg';
     enterToSend: boolean;
     autoScroll: boolean;
-    customPersonas: { id: string; name: string; systemPrompt: string }[];
+    customPersonas: { id: string; name: string; systemPrompt: string; promptHistory?: string[] }[];
 
     // Actions
     createNewChat: () => string;
@@ -90,6 +90,7 @@ interface ChatState {
     setAutoScroll: (val: boolean) => void;
     addCustomPersona: (persona: { name: string; systemPrompt: string }) => string | null;
     deleteCustomPersona: (id: string) => void;
+    editCustomPersona: (id: string, persona: { name: string; systemPrompt: string }) => void;
     setCustomPersona: (persona: { name: string; systemPrompt: string } | null) => void;
 }
 
@@ -118,7 +119,7 @@ export const useChatStore = create<ChatState>()(
                 const state = get();
                 if (state.customPersonas.length >= 3) return null;
                 const id = 'custom-' + Date.now();
-                const newPersona = { id, ...persona };
+                const newPersona = { id, promptHistory: [persona.systemPrompt], ...persona };
                 set({ customPersonas: [...state.customPersonas, newPersona] });
                 return id;
             },
@@ -131,6 +132,22 @@ export const useChatStore = create<ChatState>()(
                         activePersonaId: state.activePersonaId === id ? 'general' : state.activePersonaId,
                     };
                 });
+            },
+
+            editCustomPersona: (id, persona) => {
+                set((state) => ({
+                    customPersonas: state.customPersonas.map(p => {
+                        if (p.id === id) {
+                            // Only add to history if prompt actually changed
+                            const newHistory = (p.systemPrompt !== persona.systemPrompt)
+                                ? [...(p.promptHistory || [p.systemPrompt]), persona.systemPrompt].slice(-3) // Keep max 3
+                                : (p.promptHistory || [p.systemPrompt]);
+
+                            return { ...p, ...persona, promptHistory: newHistory };
+                        }
+                        return p;
+                    })
+                }));
             },
 
             // Legacy compat — wraps addCustomPersona
