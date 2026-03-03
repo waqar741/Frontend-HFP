@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Copy, RotateCw, Check, X, ChevronLeft, ChevronRight, Pen } from 'lucide-react';
+import { Copy, RotateCw, Check, X, ChevronLeft, ChevronRight, Pen, Play, Square, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -33,7 +33,19 @@ export function ChatMessage({
     const [editedContent, setEditedContent] = useState(message.content);
     const [showCopyToast, setShowCopyToast] = useState(false);
     const [viewingVersionIndex, setViewingVersionIndex] = useState<number | undefined>(undefined);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
     const messageRef = useRef<HTMLDivElement>(null);
+    const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+    useEffect(() => {
+        // Clean up speech synthesis when unmounting
+        return () => {
+            if (speechUtteranceRef.current) {
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, []);
 
     const isUser = message.role === 'user';
     const isStreaming = !isUser && isLast && message.content && !message.stats;
@@ -95,6 +107,58 @@ export function ChatMessage({
                 onVersionChange?.(newIndex);
             }
         }
+    };
+
+    const handleSpeak = () => {
+        if (!('speechSynthesis' in window)) {
+            alert('Text-to-speech is not supported in this browser.');
+            return;
+        }
+
+        // If playing but paused, resume
+        if (isPlaying && isPaused) {
+            window.speechSynthesis.resume();
+            setIsPaused(false);
+            return;
+        }
+
+        // If playing and not paused, pause
+        if (isPlaying && !isPaused) {
+            window.speechSynthesis.pause();
+            setIsPaused(true);
+            return;
+        }
+
+        // Start new speech
+        window.speechSynthesis.cancel(); // Stop any current speech
+        const utterance = new SpeechSynthesisUtterance(displayContent);
+
+        utterance.onstart = () => {
+            setIsPlaying(true);
+            setIsPaused(false);
+        };
+
+        utterance.onend = () => {
+            setIsPlaying(false);
+            setIsPaused(false);
+            speechUtteranceRef.current = null;
+        };
+
+        utterance.onerror = () => {
+            setIsPlaying(false);
+            setIsPaused(false);
+            speechUtteranceRef.current = null;
+        };
+
+        speechUtteranceRef.current = utterance;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    const handleStopSpeech = () => {
+        window.speechSynthesis.cancel();
+        setIsPlaying(false);
+        setIsPaused(false);
+        speechUtteranceRef.current = null;
     };
 
     return (
@@ -278,6 +342,27 @@ export function ChatMessage({
                                             <Copy className="h-3.5 w-3.5" />
                                         )}
                                     </Button>
+                                    {!isUser && (
+                                        <>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={handleSpeak}
+                                                className={cn(
+                                                    "h-7 w-7 p-0 hover:bg-accent/50 rounded-md transition-all duration-150",
+                                                    isPlaying && !isPaused ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground"
+                                                )}
+                                                title={isPlaying ? (isPaused ? "Resume speaking" : "Pause speaking") : "Read aloud"}
+                                            >
+                                                {isPlaying && !isPaused ? (
+                                                    <Pause className="h-3.5 w-3.5" />
+                                                ) : (
+                                                    <Play className="h-3.5 w-3.5" />
+                                                )}
+                                            </Button>
+
+                                        </>
+                                    )}
                                     {isLast && onRegenerate && (
                                         <Button
                                             size="sm"

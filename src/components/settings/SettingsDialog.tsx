@@ -552,19 +552,6 @@ export function SettingsDialog() {
                                                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-shadow"
                                                 />
 
-                                                <textarea
-                                                    placeholder="Write your custom system prompt here..."
-                                                    value={personaPrompt}
-                                                    onChange={e => {
-                                                        setPersonaPrompt(e.target.value);
-                                                        // If editing and we start typing, we are effectively on a "new" draft of the current viewed state
-                                                        // But let's just keep it simple and update the text. On save, it appends to history.
-                                                    }}
-                                                    rows={4}
-                                                    disabled={!editingPersonaId && customPersonas.length >= 3}
-                                                    className="w-full px-4 py-3 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none disabled:opacity-50 transition-shadow"
-                                                />
-
                                                 {editingPersonaId && (() => {
                                                     const editingPersona = customPersonas.find(p => p.id === editingPersonaId);
                                                     const history = editingPersona?.promptHistory || [editingPersona?.systemPrompt || ''];
@@ -593,6 +580,19 @@ export function SettingsDialog() {
                                                     }
                                                     return null;
                                                 })()}
+
+                                                <textarea
+                                                    placeholder="Write your custom system prompt here..."
+                                                    value={personaPrompt}
+                                                    onChange={e => {
+                                                        setPersonaPrompt(e.target.value);
+                                                        // If editing and we start typing, we are effectively on a "new" draft of the current viewed state
+                                                        // But let's just keep it simple and update the text. On save, it appends to history.
+                                                    }}
+                                                    rows={4}
+                                                    disabled={!editingPersonaId && customPersonas.length >= 3}
+                                                    className="w-full px-4 py-3 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none disabled:opacity-50 transition-shadow"
+                                                />
                                                 <div className="flex gap-2">
                                                     {editingPersonaId && (
                                                         <Button
