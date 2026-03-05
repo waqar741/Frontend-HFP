@@ -161,21 +161,45 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
 
             // Resolve @mentioned document context from local IndexedDB
             let systemContent = activePersona.systemPrompt;
-            const context = await getContextForMentions(userMessageContent);
-            if (context) {
-                systemContent = `${systemContent}\n\n[DOCUMENT CONTEXT]\n${context}\n[END DOCUMENT CONTEXT]`;
+            const { textContext, images: docImages } = await getContextForMentions(userMessageContent);
+            if (textContext) {
+                systemContent = `${systemContent}\n\n[DOCUMENT CONTEXT]\n${textContext}\n[END DOCUMENT CONTEXT]`;
+            }
+
+            // Build messages array
+            const rawMessages = [...(useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [])]
+                .map(m => ({ role: m.role, content: m.content }))
+                .filter(m => {
+                    if (!m.content || !m.content.trim()) return false;
+                    if (m.content.startsWith('Error:')) return false;
+                    if (m.content.includes('_[Generation stopped]_')) return false;
+                    if (m.content.trim() === 'None') return false;
+                    return true;
+                });
+
+            // If we have document images, convert the last user message to multimodal format
+            let messagesForApi: any[] = rawMessages;
+            if (docImages.length > 0) {
+                messagesForApi = rawMessages.map((m, idx) => {
+                    // Only convert the last user message to multimodal
+                    if (idx === rawMessages.length - 1 && m.role === 'user') {
+                        const contentParts: any[] = [
+                            { type: 'text', text: m.content }
+                        ];
+                        for (const img of docImages) {
+                            contentParts.push({
+                                type: 'image_url',
+                                image_url: { url: img.dataUrl }
+                            });
+                        }
+                        return { role: m.role, content: contentParts };
+                    }
+                    return m;
+                });
             }
 
             const stats = await sendChatMessage(
-                [...useChatStore.getState().sessions.find(s => s.id === activeSessionId)?.messages || [], { role: 'user', content: userMessageContent }]
-                    .map(m => ({ role: m.role, content: m.content }))
-                    .filter(m => {
-                        if (!m.content || !m.content.trim()) return false;
-                        if (m.content.startsWith('Error:')) return false;
-                        if (m.content.includes('_[Generation stopped]_')) return false;
-                        if (m.content.trim() === 'None') return false;
-                        return true;
-                    }) as any,
+                messagesForApi,
                 targetNode,
                 { role: 'system', content: systemContent },
                 (chunk) => {

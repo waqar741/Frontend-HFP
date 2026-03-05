@@ -9,6 +9,8 @@ export interface DocumentRecord {
     chunkCount: number;
     processingStatus: 'pending' | 'ready' | 'error';
     errorMessage?: string;
+    hasImages?: boolean;   // true if PDF contains rendered page images
+    imageCount?: number;   // number of page images extracted
 }
 
 export interface DocumentChunk {
@@ -16,4 +18,13 @@ export interface DocumentChunk {
     index: number;
     text: string;
     pageNumber?: number;
+}
+
+/** A rendered PDF page image (JPEG base64) */
+export interface PageImage {
+    docId: string;
+    pageNumber: number;
+    dataUrl: string;       // data:image/jpeg;base64,...
+    width: number;
+    height: number;
 }

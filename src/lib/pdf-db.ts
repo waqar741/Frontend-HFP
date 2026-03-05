@@ -1,19 +1,20 @@
 /**
  * pdf-db.ts
- * IndexedDB wrapper for local PDF blob and chunk storage.
- * Stores raw PDF bytes and extracted text chunks entirely in the browser —
- * no server required until the real /api/documents backend is ready.
+ * IndexedDB wrapper for local PDF blob, chunk, and image storage.
+ * Stores raw PDF bytes, extracted text chunks, and page images
+ * entirely in the browser — no server required.
  *
- * DB name: hfp-pdf-library   version: 1
+ * DB name: hfp-pdf-library   version: 2
  * Stores:
  *   - "blobs"  : { id: string (docId), blob: Blob }
  *   - "chunks" : { id: string (docId), chunks: DocumentChunk[] }
+ *   - "images" : { id: string (docId), images: PageImage[] }
  */
 
-import type { DocumentChunk } from '@/types/document';
+import type { DocumentChunk, PageImage } from '@/types/document';
 
 const DB_NAME = 'hfp-pdf-library';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -25,6 +26,9 @@ function openDB(): Promise<IDBDatabase> {
             }
             if (!db.objectStoreNames.contains('chunks')) {
                 db.createObjectStore('chunks', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('images')) {
+                db.createObjectStore('images', { keyPath: 'id' });
             }
         };
         req.onsuccess = () => resolve(req.result);
@@ -86,19 +90,71 @@ export const PdfDB = {
         db.close();
     },
 
-    /** Get chunks for multiple doc IDs, concatenated up to a token budget (approx words) */
-    async getContextForIds(docIds: string[], wordBudget = 2500): Promise<string> {
-        const parts: string[] = [];
-        let wordCount = 0;
+    // ---- Image storage ----
+
+    async saveImages(docId: string, images: PageImage[]): Promise<void> {
+        const db = await openDB();
+        await tx(db, 'images', 'readwrite', (s) => s.put({ id: docId, images }));
+        db.close();
+    },
+
+    async getImages(docId: string): Promise<PageImage[]> {
+        const db = await openDB();
+        const row = await tx<{ id: string; images: PageImage[] } | undefined>(db, 'images', 'readonly', (s) => s.get(docId));
+        db.close();
+        return row?.images ?? [];
+    },
+
+    async deleteImages(docId: string): Promise<void> {
+        const db = await openDB();
+        await tx(db, 'images', 'readwrite', (s) => s.delete(docId));
+        db.close();
+    },
+
+    /** Get text chunks for multiple doc IDs, preprocessed and relevance-ranked */
+    async getContextForIds(docIds: string[], wordBudget = 2000, query?: string): Promise<string> {
+        const allChunks: { text: string; index: number }[] = [];
+        let globalIndex = 0;
         for (const id of docIds) {
             const chunks = await PdfDB.getChunks(id);
             for (const chunk of chunks) {
-                const words = chunk.text.split(/\s+/).length;
-                if (wordCount + words > wordBudget) break;
-                parts.push(chunk.text);
-                wordCount += words;
+                allChunks.push({ text: chunk.text, index: globalIndex++ });
             }
         }
+
+        if (allChunks.length === 0) return '';
+
+        // Use optimized context builder (stopwords removed, relevance-ranked)
+        if (query) {
+            const { buildOptimizedContext } = await import('@/lib/text-preprocessor');
+            return buildOptimizedContext(allChunks, query, wordBudget);
+        }
+
+        // Fallback: preprocess without relevance ranking
+        const { preprocessForContext } = await import('@/lib/text-preprocessor');
+        const parts: string[] = [];
+        let wordCount = 0;
+        for (const chunk of allChunks) {
+            const processed = preprocessForContext(chunk.text);
+            const words = processed.split(/\s+/).length;
+            if (wordCount + words > wordBudget && parts.length > 0) break;
+            parts.push(processed);
+            wordCount += words;
+        }
         return parts.join('\n\n');
+    },
+
+    /** Get page images for multiple doc IDs, limited to maxImages total */
+    async getImagesForIds(docIds: string[], maxImages = 5): Promise<PageImage[]> {
+        const allImages: PageImage[] = [];
+        for (const id of docIds) {
+            const images = await PdfDB.getImages(id);
+            for (const img of images) {
+                if (allImages.length >= maxImages) break;
+                allImages.push(img);
+            }
+            if (allImages.length >= maxImages) break;
+        }
+        return allImages;
     },
 };

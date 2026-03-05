@@ -1,6 +1,12 @@
+export interface MessageContentPart {
+    type: 'text' | 'image_url';
+    text?: string;
+    image_url?: { url: string };
+}
+
 export interface Message {
     role: 'user' | 'assistant' | 'system';
-    content: string;
+    content: string | MessageContentPart[];
 }
 
 // Use dynamic system message instead of hardcoded

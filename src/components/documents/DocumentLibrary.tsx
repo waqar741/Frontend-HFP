@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
     FileText, Trash2, Upload, X, CheckCircle, AlertCircle, Loader2,
-    BookOpen, Clock, Hash, FileSearch
+    BookOpen, Clock, Hash, FileSearch, Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -161,8 +161,8 @@ export function DocumentLibrary({ open, onClose }: DocumentLibraryProps) {
                             onDrop={handleDrop}
                             onClick={() => !isUploading && fileInputRef.current?.click()}
                             className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 px-4 cursor-pointer transition-all duration-200 ${dragOver
-                                    ? 'border-primary bg-primary/10'
-                                    : 'border-border hover:border-primary/50 hover:bg-muted/40'
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border hover:border-primary/50 hover:bg-muted/40'
                                 } ${isUploading ? 'pointer-events-none opacity-70' : ''}`}
                         >
                             {isUploading ? (
@@ -220,6 +220,12 @@ export function DocumentLibrary({ open, onClose }: DocumentLibraryProps) {
                                                 </span>
                                                 <span>{formatBytes(doc.size)}</span>
                                                 {doc.pageCount > 0 && <span>{doc.pageCount}p</span>}
+                                                {doc.hasImages && (
+                                                    <span className="flex items-center gap-0.5 text-blue-500">
+                                                        <ImageIcon className="h-2.5 w-2.5" />
+                                                        {doc.imageCount || 0} img
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground/70">
                                                 <Clock className="h-2.5 w-2.5" />

@@ -88,7 +88,7 @@ export function Sidebar() {
     }
 
     return (
-        <div className="flex h-full flex-col p-4 bg-sidebar border-r border-border">
+        <div className="flex h-full w-full overflow-hidden flex-col p-4 bg-sidebar border-r border-border">
             {/* Header */}
             <div className="flex items-center gap-2 mb-8 px-2">
                 <span className="font-bold text-lg tracking-wide">
@@ -119,33 +119,33 @@ export function Sidebar() {
             </div>
 
             {/* Chat List */}
-            <div className="flex-1 overflow-hidden -mx-2 px-2">
-                <p className="text-xs font-semibold text-muted-foreground mb-2 px-3">Conversations</p>
-                <ScrollArea className="h-full">
+            <div className="flex-1 overflow-hidden -mx-2 px-2 flex flex-col min-h-0">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 px-3 shrink-0">Conversations</p>
+                <ScrollArea className="flex-1 w-full">
                     {filteredSessions.length === 0 ? (
                         <div className="text-center text-sm text-muted-foreground py-4">
                             No conversations found.
                         </div>
                     ) : (
-                        <div className="space-y-0.5">
+                        <div className="space-y-0.5 w-full pr-3">
                             {filteredSessions.map((session) => (
                                 <div
                                     key={session.id}
                                     className={cn(
-                                        "group flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors cursor-pointer",
+                                        "group flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors cursor-pointer w-full overflow-hidden",
                                         currentSessionId === session.id
                                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                                             : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                                     )}
                                     onClick={() => selectSession(session.id)}
                                 >
-                                    <span className="flex-1 truncate">
-                                        {session.title}
+                                    <span className="flex-1 min-w-0 truncate">
+                                        {session.title.length > 23 ? session.title.slice(0, 25) + '...' : session.title}
                                     </span>
 
                                     {/* Menu Actions */}
                                     <div className={cn(
-                                        "opacity-0 transition-opacity",
+                                        "opacity-0 transition-opacity shrink-0",
                                         "group-hover:opacity-100",
                                         currentSessionId === session.id && "opacity-100"
                                     )}>

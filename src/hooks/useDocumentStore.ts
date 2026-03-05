@@ -3,12 +3,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { DocumentRecord } from '@/types/document';
+import type { DocumentRecord, PageImage } from '@/types/document';
 
 /**
  * useDocumentStore
  *
- * Offline-first PDF knowledge store.
+ * Offline-first PDF knowledge store with image support.
  *
  * Storage layers:
  *  ┌─────────────────────────────────────────────────────────┐
@@ -16,14 +16,14 @@ import type { DocumentRecord } from '@/types/document';
  *  │   DocumentRecord[] metadata (name, hash, status, …)   │
  *  ├─────────────────────────────────────────────────────────┤
  *  │ Layer 2 – IndexedDB (via pdf-db.ts)                    │
- *  │   Raw PDF Blob  +  DocumentChunk[]                     │
+ *  │   Raw PDF Blob  +  DocumentChunk[]  +  PageImage[]     │
  *  ├─────────────────────────────────────────────────────────┤
- *  │ Layer 3 – /api/documents  (future, opt-in)             │
- *  │   Real server processing when backend is ready         │
+ *  │ Layer 3 – /api/upload  (sends raw PDF to backend)      │
  *  └─────────────────────────────────────────────────────────┘
  *
  * All extraction runs client-side via pdfjs-dist.
  * SHA-256 deduplication prevents reprocessing the same PDF.
+ * Image-based PDFs have their pages rendered as JPEG for multimodal use.
  */
 
 interface DocumentStore {
@@ -32,12 +32,12 @@ interface DocumentStore {
     uploadProgress: number; // 0–100
     processingDocId: string | null;
 
-    loadDocuments: () => void;            // reads from persisted state (instant)
+    loadDocuments: () => void;
     uploadDocument: (file: File) => Promise<DocumentRecord | null>;
     deleteDocument: (id: string) => Promise<void>;
     getDocumentByName: (name: string) => DocumentRecord | undefined;
-    getContextForMentions: (text: string) => Promise<string>;
-    syncToApi: () => Promise<void>;       // future: push local docs to real API
+    getContextForMentions: (text: string) => Promise<{ textContext: string; images: PageImage[] }>;
+    syncToApi: () => Promise<void>;
 }
 
 export const useDocumentStore = create<DocumentStore>()(
@@ -50,7 +50,6 @@ export const useDocumentStore = create<DocumentStore>()(
 
             loadDocuments: () => {
                 // Data already rehydrated from localStorage by Zustand persist.
-                // Optionally verify IndexedDB blobs still exist.
             },
 
             uploadDocument: async (file: File) => {
@@ -61,12 +60,12 @@ export const useDocumentStore = create<DocumentStore>()(
                 try {
                     // 1. Read bytes
                     const buffer = await file.arrayBuffer();
-                    set({ uploadProgress: 15 });
+                    set({ uploadProgress: 10 });
 
-                    // 2. SHA-256 deduplication — avoid reprocessing
-                    const { sha256, slugify, extractPdfText, chunkText } = await import('@/lib/pdf-extractor');
+                    // 2. SHA-256 deduplication
+                    const { sha256, slugify, extractPdfContent, chunkText } = await import('@/lib/pdf-extractor');
                     const hash = await sha256(buffer);
-                    set({ uploadProgress: 25 });
+                    set({ uploadProgress: 15 });
 
                     const existing = get().documents.find(d => d.hash === hash);
                     if (existing) {
@@ -92,32 +91,59 @@ export const useDocumentStore = create<DocumentStore>()(
                     set(state => ({
                         documents: [pendingRecord, ...state.documents],
                         processingDocId: id,
-                        uploadProgress: 35,
+                        uploadProgress: 20,
                     }));
 
                     // 4. Save raw blob to IndexedDB
                     const { PdfDB } = await import('@/lib/pdf-db');
                     await PdfDB.saveBlob(id, new Blob([buffer], { type: 'application/pdf' }));
-                    set({ uploadProgress: 50 });
+                    set({ uploadProgress: 30 });
 
-                    // 5. Extract text with pdfjs-dist (client-side)
-                    const { text, pageCount } = await extractPdfText(buffer);
-                    set({ uploadProgress: 75 });
+                    // 5. Upload to /api/upload in parallel (fire-and-forget)
+                    const uploadFormData = new FormData();
+                    uploadFormData.append('file', file);
+                    fetch('/api/upload', {
+                        method: 'POST',
+                        body: uploadFormData,
+                    }).then(res => {
+                        if (res.ok) {
+                            console.log(`[DocStore] Uploaded "${file.name}" to /api/upload successfully`);
+                        } else {
+                            console.warn(`[DocStore] /api/upload failed for "${file.name}": ${res.status}`);
+                        }
+                    }).catch(err => {
+                        console.warn(`[DocStore] /api/upload error for "${file.name}":`, err);
+                    });
 
-                    // 6. Chunk and save
+                    // 6. Extract text + images with pdfjs-dist (client-side)
+                    set({ uploadProgress: 40 });
+                    const { text, pageCount, images, isImageBased } = await extractPdfContent(buffer);
+                    set({ uploadProgress: 70 });
+
+                    // 7. Chunk text and save
                     const chunks = chunkText(id, text);
                     await PdfDB.saveChunks(id, chunks);
+                    set({ uploadProgress: 80 });
+
+                    // 8. Save page images if present
+                    if (images.length > 0) {
+                        const taggedImages = images.map(img => ({ ...img, docId: id }));
+                        await PdfDB.saveImages(id, taggedImages);
+                    }
                     set({ uploadProgress: 90 });
 
-                    // 7. Finalize record
+                    // 9. Finalize record — ready if we have text OR images
+                    const hasContent = text.trim().length > 0 || images.length > 0;
                     const readyRecord: DocumentRecord = {
                         ...pendingRecord,
                         pageCount,
                         chunkCount: chunks.length,
-                        processingStatus: text.trim().length > 0 ? 'ready' : 'error',
-                        errorMessage: text.trim().length === 0
-                            ? 'No extractable text found. This PDF may be a scanned image.'
-                            : undefined,
+                        hasImages: images.length > 0,
+                        imageCount: images.length,
+                        processingStatus: hasContent ? 'ready' : 'error',
+                        errorMessage: hasContent
+                            ? undefined
+                            : 'No extractable text or images found in this PDF.',
                     };
 
                     set(state => ({
@@ -148,7 +174,11 @@ export const useDocumentStore = create<DocumentStore>()(
 
             deleteDocument: async (id: string) => {
                 const { PdfDB } = await import('@/lib/pdf-db');
-                await Promise.all([PdfDB.deleteBlob(id), PdfDB.deleteChunks(id)]);
+                await Promise.all([
+                    PdfDB.deleteBlob(id),
+                    PdfDB.deleteChunks(id),
+                    PdfDB.deleteImages(id),
+                ]);
                 set(state => ({ documents: state.documents.filter(d => d.id !== id) }));
             },
 
@@ -159,28 +189,33 @@ export const useDocumentStore = create<DocumentStore>()(
             },
 
             /**
-             * Given a message string, extract @mentions, fetch their chunks from
-             * IndexedDB, and return a combined context string for LLM injection.
+             * Given a message string, extract @mentions, fetch text chunks + images
+             * from IndexedDB, and return context for LLM injection.
              */
             getContextForMentions: async (text: string) => {
                 const mentions = (text.match(/@([\w-]+)/g) || []).map(m => m.slice(1));
-                if (mentions.length === 0) return '';
+                if (mentions.length === 0) return { textContext: '', images: [] };
 
                 const { documents } = get();
-                const docIds = mentions
-                    .map(m => documents.find(d => d.name === m && d.processingStatus === 'ready')?.id)
-                    .filter(Boolean) as string[];
+                const matchedDocs = mentions
+                    .map(m => documents.find(d => d.name === m && d.processingStatus === 'ready'))
+                    .filter(Boolean) as DocumentRecord[];
 
-                if (docIds.length === 0) return '';
+                const docIds = matchedDocs.map(d => d.id);
+                if (docIds.length === 0) return { textContext: '', images: [] };
 
                 const { PdfDB } = await import('@/lib/pdf-db');
-                return PdfDB.getContextForIds(docIds);
+                const textContext = await PdfDB.getContextForIds(docIds, 2000, text);
+
+                // Get images for docs that have them
+                const imageDocIds = matchedDocs.filter(d => d.hasImages).map(d => d.id);
+                const images = imageDocIds.length > 0
+                    ? await PdfDB.getImagesForIds(imageDocIds, 5)
+                    : [];
+
+                return { textContext, images };
             },
 
-            /**
-             * Sync all local 'ready' documents to the real API when it becomes available.
-             * Call this once the backend /api/documents/upload is properly implemented.
-             */
             syncToApi: async () => {
                 const { documents } = get();
                 const ready = documents.filter(d => d.processingStatus === 'ready');
@@ -201,7 +236,6 @@ export const useDocumentStore = create<DocumentStore>()(
 
                         if (res.ok) {
                             const { document: serverDoc } = await res.json();
-                            // If server has real processing, update record with server ID
                             console.log(`Synced "${doc.originalName}" to server as`, serverDoc.id);
                         }
                     } catch (e) {
@@ -212,7 +246,6 @@ export const useDocumentStore = create<DocumentStore>()(
         }),
         {
             name: 'hfp-document-library',
-            // Only persist metadata — blobs/chunks live in IndexedDB
             partialize: (state) => ({ documents: state.documents }),
         }
     )
