@@ -7,12 +7,14 @@ A production-grade, **offline-first** system allowing users to upload PDFs once,
 Unlike traditional server-heavy RAG (Retrieval-Augmented Generation) pipelines, this feature runs entirely within the user's browser. 
 
 1. **User Uploads PDF** -> Drag & drop into the Document Library panel.
-2. **Local Hash Check** -> Computes SHA-256 of the file bytes.
-   - **Yes (Duplicate):** Returns existing document metadata instantly. 
-   - **No (New):** Extracts text locally using `pdfjs-dist`. Chunks text into segments.
-3. **Local Storage** -> Saves raw PDF blobs and text chunks into **IndexedDB**. Saves metadata (name, hash, size) into **localStorage** (via Zustand `persist`).
+2. **Dual-Flow Processing**: 
+   - **API Upload (Parallel)**: Raw PDF is sent asynchronously to `/api/upload` for server-side persistence.
+   - **Local Text Extraction**: Extracts text locally using `pdfjs-dist`. Chunks text into segments.
+   - **Local Image Extraction**: If the PDF is scanned or image-based (< 50 chars per page), `pdfjs-dist` Canvas API renders pages into base64 JPEGs.
+3. **Local Storage** -> Saves raw PDF blobs, text chunks, and images into **IndexedDB**. Saves metadata (name, hash, size, image flag) into **localStorage**.
 4. **Chat Mentioning** -> User types `@` in chat. Autocomplete dropdown filters local documents.
-5. **Context Injection** -> When sending a message with an `@mention`, the chat frontend fetches chunks directly from IndexedDB and silently injects them as system context ahead of the LLM call.
+5. **Context Injection** -> When sending a message with an `@mention`, the chart frontend fetches chunks and images from IndexedDB. Text chunks are dynamically **compressed** (stopwords removed, whitespace optimized) and **relevance-scored** against the user's query to minimize token usage.
+6. **Multimodal Payload** -> Injects the compressed text as system context. If the document has images, constructs an OpenAI-compatible multimodal array (`image_url`) for vision models.
 
 ## The Tech Stack
 
@@ -22,8 +24,9 @@ Two lightweight, zero-dependency local stores that fit a privacy-first Next.js s
 |---|---|
 | **Document Metadata** | `localStorage` (via Zustand `persist` middleware) |
 | **PDF Text Chunks** | `IndexedDB` (via `idb` wrapper in `src/lib/pdf-db.ts`) |
+| **PDF Page Images** | `IndexedDB` (Stores base64 rendered pages for scanned PDFs) |
 | **Raw PDF Blobs** | `IndexedDB` |
-| **Text Extraction** | `pdfjs-dist` (Browser-native PDF parsing, ServiceWorker based) |
+| **Text/Image Extraction** | `pdfjs-dist` (Browser-native PDF parsing with Canvas API) |
 
 > **Note on Scaling:** Because the processing logic (hashing, extraction, chunking) is completely decoupled into `src/lib/pdf-extractor.ts`, it is trivial to add a `syncToApi()` method later to push these pre-processed, pre-chunked documents to a backend (like Vercel Blob + Postgres) once user authentication is introduced.
 
@@ -37,14 +40,20 @@ Before processing any uploaded PDF:
 
 This means if a user uploads the same 50-page lab report twice, the second upload takes 10 milliseconds and uses zero extra storage.
 
-## Text Extraction & Chunking
+## Text & Image Extraction
 
 **Library:** `pdfjs-dist` (Standard Mozilla PDF.js compiled for modern browsers)
 
-**Chunking strategy:**
+**Extraction Strategy:**
+- Text is extracted per page. If a PDF is deemed "image-heavy" (averaging < 50 characters per page), the system automatically triggers image extraction.
+- **Canvas Rendering**: Pages are drawn to an `OffscreenCanvas` and exported as JPEG data URLs.
+
+**Chunking & Preprocessing (`src/lib/text-preprocessor.ts`):**
 - Split extracted text into logical blocks using token approximations.
-- Enforces an overlap between chunks (e.g., 50 words) so context isn't lost across chunk boundaries.
-- Generates a friendly `@slug` based on the original filename for easy typing.
+- **Context Window Optimization**: Before sending to the LLM, the text is heavily compressed:
+  - **Medical-Aware Stopword Removal**: Removes common words (`the`, `and`) but preserves critical clinical terms (`no`, `not`, `absent`, `left`).
+  - **Boilerplate Stripping**: Removes recurring headers, footers, pagination, and timestamps to save tokens.
+  - **Relevance Scoring**: Chunks are scored via keyword-overlap against the user's specific query, injecting only the most highly relevant segments first to save context window.
 
 ## Zustand Library Store (`src/hooks/useDocumentStore.ts`)
 

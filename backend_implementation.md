@@ -6,11 +6,11 @@ The current PDF Knowledge Base is entirely offline-first (using IndexedDB and `p
 
 ## 1. What Remains on the Frontend
 
-Right now, the frontend handles extraction entirely in the browser. To move to a backend system:
+Right now, the frontend handles extraction entirely in the browser, but we have implemented a **Dual-Flow** setup where the file is also sent to `/api/upload`. To fully move to a backend-only RAG system:
 
-- [] **Update `useDocumentStore.ts`**: Implement the empty `syncToApi()` function. When a user uploads a PDF, instead of pulling text locally, we should upload the raw blob to `POST /api/documents/upload`.
-- [] **Update Chat Submission**: Currently, `getContextForMentions()` pulls text chunks directly from IndexedDB. It should instead append the `{documentIds}` to the payload sent to `/api/chat`.
-- [] **Optional: Delete IndexedDB Code**: Once fully backend-reliant, the local `pdf-db.ts` and `pdf-extractor.ts` can be removed to reduce client bundle size.
+- [x] **Update `useDocumentStore.ts`**: We now upload the raw blob to `POST /api/upload` in parallel with local extraction.
+- [ ] **Update Chat Submission**: Currently, `getContextForMentions()` pulls text chunks and images directly from IndexedDB. It should instead just append the `{documentIds}` to the payload sent to `/api/chat`.
+- [ ] **Delete IndexedDB Code**: Once fully backend-reliant, the local `pdf-db.ts`, `text-preprocessor.ts`, and `pdf-extractor.ts` can be removed to reduce client bundle size.
 
 ## 2. Backend Implementation Steps
 
