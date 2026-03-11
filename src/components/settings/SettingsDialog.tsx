@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuthStore } from '@/store/authStore';
 import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X, Pencil, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +33,7 @@ type ToastInfo = { message: string; type: 'success' | 'error' } | null;
 export function SettingsDialog() {
     const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, voicePreference, setVoicePreference, customPersonas, addCustomPersona, deleteCustomPersona, editCustomPersona, activePersonaId, setActivePersona } = useChatStore();
     const { theme, setTheme } = useTheme();
+    const { isAuthenticated } = useAuthStore();
 
     const [activeTab, setActiveTab] = useState<TabId>('general');
     const [isAnonymized, setIsAnonymized] = useState(false);
@@ -641,143 +643,155 @@ export function SettingsDialog() {
                                 {/* ── DATA ────────────────────────────────── */}
                                 {activeTab === 'data' && (
                                     <div className="w-full max-w-full min-w-0 space-y-6 overflow-x-hidden pb-6">
-                                        {/* Export Section */}
-                                        <div className="space-y-4 w-full min-w-0">
-                                            <div className="flex flex-row items-center justify-between px-1 gap-3">
-                                                <div className="min-w-0">
-                                                    <h3 className="text-sm font-semibold text-foreground">Export Sessions</h3>
-                                                    <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 leading-tight">
-                                                        Download your chat history.
-                                                    </p>
+                                        {!isAuthenticated ? (
+                                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                                <div className="w-14 h-14 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
+                                                    <DatabaseBackup className="h-7 w-7 text-muted-foreground/40" />
                                                 </div>
-
-                                                {/* Anonymize Switch - Simplified for mobile */}
-                                                <div className="flex items-center gap-2 shrink-0 bg-muted/50 px-2.5 py-1.5 rounded-full border border-border/50">
-                                                    <Switch
-                                                        id="anonymize-mode"
-                                                        checked={isAnonymized}
-                                                        onCheckedChange={setIsAnonymized}
-                                                        className="scale-75 m-0"
-                                                    />
-                                                    <label
-                                                        htmlFor="anonymize-mode"
-                                                        className="text-[10px] uppercase tracking-wider font-bold cursor-pointer text-foreground select-none"
-                                                    >
-                                                        Anon
-                                                    </label>
-                                                </div>
+                                                <p className="text-sm text-muted-foreground">Sign in to access data management features.</p>
+                                                <p className="text-xs text-muted-foreground/60 mt-1">Export, import, and manage your chat history.</p>
                                             </div>
-
-                                            <div className="w-full border border-border/60 rounded-xl p-3 bg-card space-y-3 shadow-sm">
-                                                <ScrollArea className="w-full h-[160px] sm:h-[200px] rounded-lg border border-border/80 bg-background">
-                                                    {sessions.length === 0 ? (
-                                                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground px-2">
-                                                            <DatabaseBackup className="h-6 w-6 mb-2 opacity-20" />
-                                                            <p className="text-xs">No sessions yet.</p>
+                                        ) : (
+                                            <>
+                                                {/* Export Section */}
+                                                <div className="space-y-4 w-full min-w-0">
+                                                    <div className="flex flex-row items-center justify-between px-1 gap-3">
+                                                        <div className="min-w-0">
+                                                            <h3 className="text-sm font-semibold text-foreground">Export Sessions</h3>
+                                                            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 leading-tight">
+                                                                Download your chat history.
+                                                            </p>
                                                         </div>
-                                                    ) : (
-                                                        <div className="space-y-1 px-1 py-1">
-                                                            {sessions.map((session) => (
-                                                                <div
-                                                                    key={session.id}
-                                                                    className="flex items-center gap-3 px-2 py-2 hover:bg-muted/60 rounded-md transition-colors"
-                                                                >
-                                                                    <Checkbox
-                                                                        id={`export-${session.id}`}
-                                                                        checked={selectedSessionIds.includes(session.id)}
-                                                                        onCheckedChange={(checked) =>
-                                                                            handleToggleSession(session.id, checked as boolean)
-                                                                        }
-                                                                        className="h-4 w-4 rounded-[4px]"
-                                                                    />
-                                                                    <label
-                                                                        htmlFor={`export-${session.id}`}
-                                                                        className="text-xs flex-1 truncate font-medium text-foreground py-1"
-                                                                    >
-                                                                        {session.title || 'Untitled Session'}
-                                                                    </label>
-                                                                    <span className="text-[10px] tabular-nums text-muted-foreground opacity-70">
-                                                                        {new Date(session.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                                                    </span>
+
+                                                        {/* Anonymize Switch - Simplified for mobile */}
+                                                        <div className="flex items-center gap-2 shrink-0 bg-muted/50 px-2.5 py-1.5 rounded-full border border-border/50">
+                                                            <Switch
+                                                                id="anonymize-mode"
+                                                                checked={isAnonymized}
+                                                                onCheckedChange={setIsAnonymized}
+                                                                className="scale-75 m-0"
+                                                            />
+                                                            <label
+                                                                htmlFor="anonymize-mode"
+                                                                className="text-[10px] uppercase tracking-wider font-bold cursor-pointer text-foreground select-none"
+                                                            >
+                                                                Anon
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="w-full border border-border/60 rounded-xl p-3 bg-card space-y-3 shadow-sm">
+                                                        <ScrollArea className="w-full h-[160px] sm:h-[200px] rounded-lg border border-border/80 bg-background">
+                                                            {sessions.length === 0 ? (
+                                                                <div className="h-full flex flex-col items-center justify-center text-muted-foreground px-2">
+                                                                    <DatabaseBackup className="h-6 w-6 mb-2 opacity-20" />
+                                                                    <p className="text-xs">No sessions yet.</p>
                                                                 </div>
+                                                            ) : (
+                                                                <div className="space-y-1 px-1 py-1">
+                                                                    {sessions.map((session) => (
+                                                                        <div
+                                                                            key={session.id}
+                                                                            className="flex items-center gap-3 px-2 py-2 hover:bg-muted/60 rounded-md transition-colors"
+                                                                        >
+                                                                            <Checkbox
+                                                                                id={`export-${session.id}`}
+                                                                                checked={selectedSessionIds.includes(session.id)}
+                                                                                onCheckedChange={(checked) =>
+                                                                                    handleToggleSession(session.id, checked as boolean)
+                                                                                }
+                                                                                className="h-4 w-4 rounded-[4px]"
+                                                                            />
+                                                                            <label
+                                                                                htmlFor={`export-${session.id}`}
+                                                                                className="text-xs flex-1 truncate font-medium text-foreground py-1"
+                                                                            >
+                                                                                {session.title || 'Untitled Session'}
+                                                                            </label>
+                                                                            <span className="text-[10px] tabular-nums text-muted-foreground opacity-70">
+                                                                                {new Date(session.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </ScrollArea>
+
+                                                        {/* Export Buttons Grid - Improved for small screens */}
+                                                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                                            {[
+                                                                { label: 'TXT', icon: FileText, fn: handleExportTxt },
+                                                                { label: 'PDF', icon: Download, fn: handleExportPdf },
+                                                                { label: 'MD', icon: FileCode, fn: handleExportMd },
+                                                                { label: 'CSV', icon: Database, fn: handleExportCsv },
+                                                                { label: 'JSON', icon: FileCode, fn: handleExportJson },
+                                                            ].map(({ label, icon: Icon, fn }) => (
+                                                                <Button
+                                                                    key={label}
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="rounded-lg h-10 w-full bg-background text-[11px] font-bold"
+                                                                    onClick={() => setExportFormatToConfirm({ label, fn })}
+                                                                    disabled={selectedSessionIds.length === 0}
+                                                                >
+                                                                    <Icon className="mr-1.5 h-3.5 w-3.5" />
+                                                                    {label}
+                                                                </Button>
                                                             ))}
                                                         </div>
-                                                    )}
-                                                </ScrollArea>
-
-                                                {/* Export Buttons Grid - Improved for small screens */}
-                                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                                    {[
-                                                        { label: 'TXT', icon: FileText, fn: handleExportTxt },
-                                                        { label: 'PDF', icon: Download, fn: handleExportPdf },
-                                                        { label: 'MD', icon: FileCode, fn: handleExportMd },
-                                                        { label: 'CSV', icon: Database, fn: handleExportCsv },
-                                                        { label: 'JSON', icon: FileCode, fn: handleExportJson },
-                                                    ].map(({ label, icon: Icon, fn }) => (
-                                                        <Button
-                                                            key={label}
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="rounded-lg h-10 w-full bg-background text-[11px] font-bold"
-                                                            onClick={() => setExportFormatToConfirm({ label, fn })}
-                                                            disabled={selectedSessionIds.length === 0}
-                                                        >
-                                                            <Icon className="mr-1.5 h-3.5 w-3.5" />
-                                                            {label}
-                                                        </Button>
-                                                    ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        {/* Import Section */}
-                                        <div className="flex flex-col gap-3 p-3 rounded-xl border border-border/60 bg-card">
-                                            <div className="min-w-0 px-1">
-                                                <h3 className="text-sm font-semibold">Import Chat History</h3>
-                                                <p className="text-[11px] text-muted-foreground mt-0.5">
-                                                    Restore from a JSON backup.
-                                                </p>
-                                            </div>
+                                                {/* Import Section */}
+                                                <div className="flex flex-col gap-3 p-3 rounded-xl border border-border/60 bg-card">
+                                                    <div className="min-w-0 px-1">
+                                                        <h3 className="text-sm font-semibold">Import Chat History</h3>
+                                                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                            Restore from a JSON backup.
+                                                        </p>
+                                                    </div>
 
-                                            <input
-                                                type="file"
-                                                id="import-json"
-                                                accept=".json"
-                                                className="hidden"
-                                                onChange={handleImport}
-                                            />
-                                            <Button
-                                                asChild
-                                                variant="outline"
-                                                className="w-full h-10 cursor-pointer rounded-lg border-dashed"
-                                            >
-                                                <label htmlFor="import-json">
-                                                    <Download className="mr-2 h-4 w-4 rotate-180" />
-                                                    <span className="text-xs font-bold uppercase tracking-tight">Select JSON File</span>
-                                                </label>
-                                            </Button>
-                                        </div>
+                                                    <input
+                                                        type="file"
+                                                        id="import-json"
+                                                        accept=".json"
+                                                        className="hidden"
+                                                        onChange={handleImport}
+                                                    />
+                                                    <Button
+                                                        asChild
+                                                        variant="outline"
+                                                        className="w-full h-10 cursor-pointer rounded-lg border-dashed"
+                                                    >
+                                                        <label htmlFor="import-json">
+                                                            <Download className="mr-2 h-4 w-4 rotate-180" />
+                                                            <span className="text-xs font-bold uppercase tracking-tight">Select JSON File</span>
+                                                        </label>
+                                                    </Button>
+                                                </div>
 
-                                        {/* Danger Zone */}
-                                        <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-4 flex flex-col gap-4">
-                                            <div className="space-y-1">
-                                                <h3 className="text-sm font-bold text-destructive flex items-center gap-2">
-                                                    <AlertTriangle className="h-4 w-4" />
-                                                    Danger Zone
-                                                </h3>
-                                                <p className="text-[11px] text-destructive/80 leading-snug">
-                                                    Permanently delete all chat history. This cannot be undone.
-                                                </p>
-                                            </div>
+                                                {/* Danger Zone */}
+                                                <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-4 flex flex-col gap-4">
+                                                    <div className="space-y-1">
+                                                        <h3 className="text-sm font-bold text-destructive flex items-center gap-2">
+                                                            <AlertTriangle className="h-4 w-4" />
+                                                            Danger Zone
+                                                        </h3>
+                                                        <p className="text-[11px] text-destructive/80 leading-snug">
+                                                            Permanently delete all chat history. This cannot be undone.
+                                                        </p>
+                                                    </div>
 
-                                            <Button
-                                                variant="destructive"
-                                                className="rounded-lg w-full font-bold h-10 text-xs uppercase tracking-wide"
-                                                onClick={() => setConfirmOpen(true)}
-                                            >
-                                                Clear All Chats
-                                            </Button>
-                                        </div>
+                                                    <Button
+                                                        variant="destructive"
+                                                        className="rounded-lg w-full font-bold h-10 text-xs uppercase tracking-wide"
+                                                        onClick={() => setConfirmOpen(true)}
+                                                    >
+                                                        Clear All Chats
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
 

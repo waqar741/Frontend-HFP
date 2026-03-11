@@ -1,0 +1,163 @@
+# =============================================================================  
+# GLOBAL SETTINGS                                                                
+# =============================================================================  
+{                                                                                
+    admin localhost:2019                                                         
+    servers {                                                                    
+        max_header_size 1MB                                                      
+    }
+}
+
+# =============================================================================
+# SNIPPETS
+# =============================================================================
+(llm-transport) {
+    transport http {
+        read_timeout 600s
+        write_timeout 300s
+        dial_timeout 5s
+    }
+    flush_interval -1
+}
+
+(health-transport) {
+    transport http {
+        read_timeout 2s
+        write_timeout 2s
+        dial_timeout 2s
+    }
+}
+
+(tailscale-acl) {
+    @denied not remote_ip 127.0.0.1 100.64.0.0/10
+    abort @denied
+}
+
+# =============================================================================
+# MAIN SITE
+# =============================================================================
+dev-ai.nomineelife.com {
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+
+    # ---------------------------------------------------------------------
+    # STANDARD HANDLERS
+    # ---------------------------------------------------------------------
+    handle /health {
+        header Content-Type text/plain
+        respond "healthy" 200
+    }
+
+    handle /test {
+        header Content-Type text/plain
+        respond "✅ Caddy is working! Server: {host} Remote: {remote_host}" 200
+    }
+
+    # Auth API - Routed to Go Brain for JWT auth
+    handle_path /api/auth/* {
+        reverse_proxy 127.0.0.1:8095
+    }
+
+    # Custom Backend APIs specific to this dev server
+    handle_path /api/agent/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+    handle_path /api/brain/* {
+        reverse_proxy 127.0.0.1:8095
+    }
+    handle_path /api/bridge/* {
+        reverse_proxy 127.0.0.1:8085
+    }
+
+    # ---------------------------------------------------------------------
+    # MAIN AI API - ROUTED TO GO BRAIN FIRST
+    # ---------------------------------------------------------------------
+    handle /v1/* {
+        reverse_proxy 127.0.0.1:8095 {
+            import llm-transport
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # ---------------------------------------------------------------------
+    # LOCAL BACKUP API (llama.cpp on port 8090)
+    # ---------------------------------------------------------------------
+    @llama_api {
+        path /props* /completion* /tokenize* /detokenize* /embedding* /infill* /slots* /metrics* /models* /json*
+    }
+
+    handle @llama_api {
+        reverse_proxy 127.0.0.1:8090 {
+            import llm-transport
+            header_up X-Backend "local-backup-8090-api"
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # ---------------------------------------------------------------------
+    # RESTRICTED MONITORING ENDPOINTS
+    # ---------------------------------------------------------------------
+    handle /local-health {
+        import tailscale-acl
+        rewrite * /health
+        reverse_proxy 127.0.0.1:8090 {
+            import health-transport
+        }
+    }
+
+    # ---------------------------------------------------------------------
+    # NEXT.JS FRONTEND CATCH-ALL
+    # Routes all remaining web traffic (and Next.js /api routes) to PM2
+    # ---------------------------------------------------------------------
+    handle {
+        encode gzip
+        reverse_proxy 127.0.0.1:3000
+    }
+}
+
+# =============================================================================
+# SAFETY VALVE: INTERNAL LOAD BALANCER (Port 8085)
+# The Go Brain forwards traffic here to distribute to the Tailscale Laptops
+# =============================================================================
+:8085 {
+    handle /v1/* {
+        # MODE 1: Manual Node Selection via Header
+        @manual_node {
+            header_regexp X-Target-Node ^100\.64\.[0-9]+\.[0-9]+:8080$
+        }
+
+        handle @manual_node {
+            reverse_proxy {header.X-Target-Node} {
+                import llm-transport
+                header_up Host {host}
+                header_up X-Real-IP {remote_host}
+                header_up X-Forwarded-For {remote_host}
+                header_up X-Request-ID {http.request.uuid}
+                header_up X-Forwarded-Proto {scheme}
+            }
+        }
+
+        # MODE 2: Automatic Cluster Load Balancing
+        handle {
+            reverse_proxy 100.64.0.2:8080 100.64.0.3:8080 100.64.0.4:8080 {
+                lb_policy least_conn
+                lb_try_duration 15s
+                lb_try_interval 250ms
+                
+                health_uri /health
+                health_interval 10s
+                health_timeout 2s
+
+                import llm-transport
+                header_up Host {host}
+                header_up X-Real-IP {remote_host}
+                header_up X-Forwarded-For {remote_host}
+                header_up X-Request-ID {http.request.uuid}
+                header_up X-Forwarded-Proto {scheme}
+            }
+        }
+    }
+}

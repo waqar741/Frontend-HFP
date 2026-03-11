@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "HealthFirstPriority",
   description: "Secure AI Health Assistant",
   icons: {
-    icon: '/favicon/favicon.ico',
+    icon: '/favicon/favicon.svg',
     apple: '/favicon/apple-touch-icon.png',
   },
 };

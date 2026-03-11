@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, KeyboardEvent, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, ArrowUp, Square, BookOpen, AtSign } from 'lucide-react';
+import { Paperclip, ArrowUp, Square, BookOpen, AtSign, Lock, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChatStore, PERSONAS } from '@/hooks/useChatStore';
 import { useDocumentStore } from '@/hooks/useDocumentStore';
+import { useAuthStore } from '@/store/authStore';
 import { NodeSelector } from './NodeSelector';
 import { DocumentLibrary } from '@/components/documents/DocumentLibrary';
 import { v4 as uuidv4 } from 'uuid';
 import { sendChatMessage } from '@/lib/api-client';
+import { Toast, useToast } from '@/components/ui/Toast';
 
 interface ChatInputProps {
     initialPrompt?: string;
@@ -27,13 +29,17 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
 
     const { currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration, activePersonaId, enterToSend, customPersonas } = useChatStore();
     const { documents, getContextForMentions } = useDocumentStore();
+    const { isAuthenticated, guestMessageCount, incrementGuestCount, setShowAuthModal } = useAuthStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const mentionRef = useRef<HTMLDivElement>(null);
+    const { toast, showToast, hideToast } = useToast();
 
     const customMatch = customPersonas.find(p => p.id === activePersonaId);
     const activePersona = customMatch
         ? { id: customMatch.id, name: customMatch.name, description: '', systemPrompt: customMatch.systemPrompt }
         : (PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0]);
+
+    const isPaywalled = !isAuthenticated && guestMessageCount >= 5;
 
     // Load document library on mount
     useEffect(() => {
@@ -104,8 +110,18 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
         }, 0);
     };
 
+    const handleLockedFeatureTap = () => {
+        showToast('Please log in to securely upload medical documents');
+    };
+
     const handleSend = async () => {
         if (!input.trim()) return;
+
+        // Guest message limit check
+        if (!isAuthenticated && guestMessageCount >= 5) {
+            setShowAuthModal(true);
+            return;
+        }
 
         let activeSessionId = currentSessionId;
         if (!activeSessionId) {
@@ -119,6 +135,11 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
 
         if (textareaRef.current) {
             textareaRef.current.style.height = '1rem';
+        }
+
+        // Increment guest counter before sending
+        if (!isAuthenticated) {
+            incrementGuestCount();
         }
 
         addMessage(activeSessionId, {
@@ -181,7 +202,6 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
             let messagesForApi: any[] = rawMessages;
             if (docImages.length > 0) {
                 messagesForApi = rawMessages.map((m, idx) => {
-                    // Only convert the last user message to multimodal
                     if (idx === rawMessages.length - 1 && m.role === 'user') {
                         const contentParts: any[] = [
                             { type: 'text', text: m.content }
@@ -253,7 +273,26 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
         }
     };
 
-    // Highlight @mentions in ghost layer — not adding that complexity; tag rendering is enough.
+    // ── PAYWALL STATE ──
+    if (isPaywalled) {
+        return (
+            <>
+                <div className="mx-auto w-full max-w-[48rem] px-3 pb-2 sm:px-4 sm:pb-3">
+                    <button
+                        onClick={() => setShowAuthModal(true)}
+                        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary to-blue-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99]"
+                    >
+                        <LogIn className="h-5 w-5" />
+                        Free limit reached. Sign in to continue chatting.
+                    </button>
+                </div>
+
+                {toast && (
+                    <Toast message={toast.message} show={!!toast} onClose={hideToast} icon={toast.icon} />
+                )}
+            </>
+        );
+    }
 
     return (
         <>
@@ -311,15 +350,27 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
                         {/* Actions row */}
                         <div className="flex w-full items-center gap-3">
                             {/* Document Library button */}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setLibraryOpen(true)}
-                                className="mr-auto text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full h-8 w-8 shrink-0"
-                                title="Document Library"
-                            >
-                                <BookOpen className="h-5 w-5" />
-                            </Button>
+                            {isAuthenticated ? (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setLibraryOpen(true)}
+                                    className="mr-auto text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full h-8 w-8 shrink-0"
+                                    title="Document Library"
+                                >
+                                    <BookOpen className="h-5 w-5" />
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleLockedFeatureTap}
+                                    className="mr-auto text-muted-foreground/50 rounded-full h-8 w-8 shrink-0 cursor-not-allowed"
+                                    title="Sign in to use Document Library"
+                                >
+                                    <BookOpen className="h-5 w-5" />
+                                </Button>
+                            )}
 
                             {/* Node selector */}
                             <NodeSelector />
@@ -349,27 +400,38 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
                     </div>
                 </div>
 
-                {/* Helper text */}
-                <div className="mt-1.5 text-center hidden sm:block">
-                    <p className="text-xs text-muted-foreground/60">
-                        {enterToSend ? (
-                            <>
-                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> to send
-                                <span className="mx-2">·</span>
-                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> for new line
-                            </>
-                        ) : (
-                            <>
-                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> to send
-                                <span className="mx-2">·</span>
-                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> for new line
-                            </>
-                        )}
-                        <span className="mx-2">·</span>
-                        <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">@</kbd> to cite a document
-                    </p>
+                {/* Helper text / Guest counter */}
+                <div className="mt-1.5 text-center">
+                    {!isAuthenticated ? (
+                        <p className="text-xs text-muted-foreground/70 font-medium">
+                            Message {guestMessageCount} of 5 <span className="text-primary/60">(Free Trial)</span>
+                        </p>
+                    ) : (
+                        <p className="text-xs text-muted-foreground/60 hidden sm:block">
+                            {enterToSend ? (
+                                <>
+                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> to send
+                                    <span className="mx-2">·</span>
+                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> for new line
+                                </>
+                            ) : (
+                                <>
+                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> to send
+                                    <span className="mx-2">·</span>
+                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> for new line
+                                </>
+                            )}
+                            <span className="mx-2">·</span>
+                            <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">@</kbd> to cite a document
+                        </p>
+                    )}
                 </div>
             </div>
+
+            {/* Toast */}
+            {toast && (
+                <Toast message={toast.message} show={!!toast} onClose={hideToast} icon={toast.icon} />
+            )}
         </>
     );
 }
