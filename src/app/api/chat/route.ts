@@ -22,6 +22,12 @@ export async function POST(req: Request) {
             headers['X-Target-Node'] = targetNode;
         }
 
+        // Forward Authorization header for JWT user session tracking
+        const authHeader = req.headers.get('Authorization');
+        if (authHeader) {
+            headers['Authorization'] = authHeader;
+        }
+
         const response = await fetch(`${baseUrl}/v1/chat/completions`, {
             method: 'POST',
             headers,

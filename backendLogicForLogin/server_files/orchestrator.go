@@ -97,6 +97,7 @@ func main() {
 	mux.HandleFunc("/api/auth/login", handleCORS(handleLogin))
 	mux.HandleFunc("/api/auth/forgot-password", handleCORS(handleForgotPassword))
 	mux.HandleFunc("/api/auth/reset-password", handleCORS(handleResetPassword))
+	mux.HandleFunc("/api/auth/history", handleCORS(handleHistory))
 
 	// Everything else → original proxy handler (unchanged)
 	mux.HandleFunc("/", handleProxy)
@@ -154,9 +155,22 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 
 	// 3. CHECK: Is this a Chat? (Only log chats to DB)
 	isChat := (r.Method == "POST" && strings.Contains(r.URL.Path, "/chat/completions"))
-	userID := r.Header.Get("X-Request-ID")
-	if userID == "" {
-		userID = "unknown"
+	sessionID := r.Header.Get("X-Request-ID")
+	if sessionID == "" {
+		sessionID = "unknown"
+	}
+
+	// Extract UserID from JWT if present
+	var dbUserID sql.NullString
+	if isChat {
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+			claims, err := validateToken(tokenStr)
+			if err == nil {
+				dbUserID = sql.NullString{String: claims.UserID, Valid: true}
+			}
+		}
 	}
 
 	// 4. IF CHAT: SAVE PROMPT
@@ -171,7 +185,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 				lastMsg := messages[len(messages)-1]
 				if lastMsg.Role == "user" {
 					log.Printf("📝 Logging User Prompt...")
-					go saveToDB(userID, "user", lastMsg.Content)
+					go saveToDB(dbUserID, sessionID, "user", lastMsg.Content)
 				}
 			}
 		}
@@ -209,8 +223,108 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 
 	// 8. SAVE RESPONSE TO DB (Only if it was a chat)
 	if isChat {
-		go saveToDB(userID, "assistant", responseBuffer.String())
+		go saveToDB(dbUserID, sessionID, "assistant", responseBuffer.String())
 	}
+}
+
+// =============================================================================
+// HISTORY HANDLER
+// =============================================================================
+
+type SyncSession struct {
+	ID        string                   `json:"id"`
+	Title     string                   `json:"title"`
+	Messages  []map[string]interface{} `json:"messages"`
+	Timestamp int64                    `json:"timestamp"`
+}
+
+func handleHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		jsonError(w, "Method not allowed", 405)
+		return
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		// Just return empty history if not logged in
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := validateToken(tokenStr)
+	if err != nil {
+		jsonError(w, "Invalid auth token", 401)
+		return
+	}
+
+	var query string
+	if DBDriver == "sqlite3" {
+		query = "SELECT id, session_id, role, content FROM chat_history WHERE user_id = ? ORDER BY id ASC"
+	} else {
+		query = "SELECT id, session_id, role, content FROM chat_history WHERE user_id = $1 ORDER BY id ASC"
+	}
+
+	rows, err := db.Query(query, claims.UserID)
+	if err != nil {
+		log.Printf("❌ Failed to query history: %v", err)
+		jsonError(w, "Internal server error fetching history", 500)
+		return
+	}
+	defer rows.Close()
+
+	sessionsMap := make(map[string]*SyncSession)
+	var sessionIDs []string // maintain order of appearance (oldest to newest)
+
+	for rows.Next() {
+		var rowID int64
+		var sid, role, content string
+		if err := rows.Scan(&rowID, &sid, &role, &content); err != nil {
+			continue
+		}
+
+		if _, exists := sessionsMap[sid]; !exists {
+			sessionsMap[sid] = &SyncSession{
+				ID:        sid,
+				Title:     "Chat",
+				Messages:  []map[string]interface{}{},
+				Timestamp: time.Now().UnixNano() / 1000000,
+			}
+			sessionIDs = append(sessionIDs, sid)
+		}
+
+		session := sessionsMap[sid]
+
+		// Automatically infer title from first user message
+		if role == "user" && session.Title == "Chat" && len(session.Messages) == 0 {
+			title := content
+			if len(title) > 30 {
+				title = title[:30] + "..."
+			}
+			session.Title = title
+		}
+
+		session.Messages = append(session.Messages, map[string]interface{}{
+			"id":      fmt.Sprintf("msg-%d", rowID),
+			"role":    role,
+			"content": content,
+		})
+	}
+
+	// Reverse array so newest sessions hit the frontend store first
+	var result []SyncSession
+	for i := len(sessionIDs) - 1; i >= 0; i-- {
+		sid := sessionIDs[i]
+		if len(sessionsMap[sid].Messages) > 0 {
+			result = append(result, *(sessionsMap[sid]))
+		}
+	}
+    if result == nil {
+        result = []SyncSession{}
+    }
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 // =============================================================================
@@ -583,13 +697,16 @@ func initDB() {
 		if err == nil {
 			log.Println("📂 Using SQLite (Local File)")
 
-			// Original chat_history table (UNCHANGED)
+			// Original chat_history table (UNCHANGED schema but ALTERED)
 			query := `CREATE TABLE IF NOT EXISTS chat_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT, role TEXT, content TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );`
 			db.Exec(query)
+			
+			// Non-destructively add user_id column if this is a legacy DB
+			db.Exec(`ALTER TABLE chat_history ADD COLUMN user_id TEXT;`)
 
 			// New users table
 			usersQuery := `CREATE TABLE IF NOT EXISTS users (
@@ -610,13 +727,16 @@ func initDB() {
 		if err == nil {
 			log.Println("🐘 Using PostgreSQL (Server)")
 
-			// Original chat_history table (UNCHANGED)
+			// Original chat_history table (UNCHANGED schema but ALTERED)
 			query := `CREATE TABLE IF NOT EXISTS chat_history (
                 id SERIAL PRIMARY KEY,
                 session_id TEXT, role TEXT, content TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );`
 			db.Exec(query)
+
+			// Non-destructively add user_id column if this is a legacy DB
+			db.Exec(`ALTER TABLE chat_history ADD COLUMN user_id TEXT;`)
 
 			// New users table
 			usersQuery := `CREATE TABLE IF NOT EXISTS users (
@@ -637,15 +757,15 @@ func initDB() {
 	}
 }
 
-// ORIGINAL saveToDB (UNCHANGED)
-func saveToDB(sid, role, content string) {
+// ORIGINAL saveToDB (Enhanced to optionally link user_id)
+func saveToDB(userID sql.NullString, sid, role, content string) {
 	var query string
 	if DBDriver == "sqlite3" {
-		query = `INSERT INTO chat_history (session_id, role, content) VALUES (?, ?, ?)`
+		query = `INSERT INTO chat_history (user_id, session_id, role, content) VALUES (?, ?, ?, ?)`
 	} else {
-		query = `INSERT INTO chat_history (session_id, role, content) VALUES ($1, $2, $3)`
+		query = `INSERT INTO chat_history (user_id, session_id, role, content) VALUES ($1, $2, $3, $4)`
 	}
-	db.Exec(query, sid, role, content)
+	db.Exec(query, userID, sid, role, content)
 }
 
 // ORIGINAL getHistory (UNCHANGED)

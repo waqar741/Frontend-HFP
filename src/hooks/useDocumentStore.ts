@@ -1,7 +1,8 @@
 'use client';
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { DocumentRecord, PageImage } from '@/types/document';
 
@@ -246,6 +247,7 @@ export const useDocumentStore = create<DocumentStore>()(
         }),
         {
             name: 'hfp-document-library',
+            storage: createJSONStorage(() => safeStorage),
             partialize: (state) => ({ documents: state.documents }),
         }
     )

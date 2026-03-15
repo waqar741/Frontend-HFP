@@ -17,6 +17,7 @@ export async function sendChatMessage(
     messages: Message[],
     targetNode: string | null,
     systemMessage: Message,
+    token: string | null = null,
     onChunk: (chunk: string) => void,
     signal?: AbortSignal
 ): Promise<{ tokens?: number; timeMs?: number; tokensPerSec?: number; model?: string } | undefined> {
@@ -31,6 +32,10 @@ export async function sendChatMessage(
         // Inject target node header if selected (same as Web-UI pattern)
         if (targetNode) {
             headers['X-Target-Node'] = targetNode;
+        }
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
         }
 
         // Call through Next.js Edge route handler for proper SSE streaming

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatStore } from '@/hooks/useChatStore';
+import { useAuthStore } from '@/store/authStore';
 import { ChatMessage } from './ChatMessage';
 import { sendChatMessage, Message } from '@/lib/api-client';
 import { v4 as uuidv4 } from 'uuid';
@@ -96,6 +97,7 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
             const controller = new AbortController();
             useChatStore.setState({ abortController: controller });
 
+            const token = useAuthStore.getState().token;
             const stats = await sendChatMessage(
                 (useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages || []).map(m => ({
                     role: m.role,
@@ -109,6 +111,7 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
                 }) as any,
                 activeNodeAddress,
                 { role: 'system', content: activePersona.systemPrompt },
+                token,
                 (chunk) => {
                     fullContent += chunk;
                     updateMessage(currentSessionId, newAssistantId, fullContent);
@@ -186,6 +189,7 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
             const controller = new AbortController();
             useChatStore.setState({ abortController: controller });
 
+            const token = useAuthStore.getState().token;
             const stats = await sendChatMessage(
                 (useChatStore.getState().sessions.find(s => s.id === currentSessionId)?.messages.slice(0, messageIndex) || []).map(m => ({
                     role: m.role,
@@ -199,6 +203,7 @@ export function ChatArea({ onPromptSelect }: ChatAreaProps) {
                 }) as any,
                 activeNodeAddress,
                 { role: 'system', content: activePersona.systemPrompt },
+                token,
                 (chunk) => {
                     fullContent += chunk;
                     updateMessage(currentSessionId, messageId, fullContent);

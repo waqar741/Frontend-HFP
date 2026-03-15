@@ -28,12 +28,6 @@ export function ChatHeader() {
     const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
     const { toast, showToast, hideToast } = useToast();
 
-    const handleLockedPersonaTap = () => {
-        if (!isAuthenticated) {
-            showToast('Sign in to consult specialists');
-        }
-    };
-
     return (
         <>
             <header className="sticky top-0 z-10 flex h-16 w-full items-center justify-between px-4 backdrop-blur-md bg-background/80 border-b border-border/40">
@@ -67,50 +61,38 @@ export function ChatHeader() {
                     </Sheet>
 
                     {/* App title (mobile) */}
-                    <span className="font-bold text-sm md:hidden text-foreground">
+                    {/* <span className="font-bold text-sm md:hidden text-foreground">
                         <span className="text-primary">Health</span>FirstPriority
-                    </span>
+                    </span> */}
                 </div>
 
                 <div className="flex items-center gap-3 text-foreground">
                     {/* Persona Selector */}
-                    {isAuthenticated ? (
-                        <Select value={activePersonaId} onValueChange={setActivePersona}>
-                            <SelectTrigger className="w-[180px] h-9 bg-background/50 border-border/50 text-sm focus:ring-1 focus:ring-ring focus:border-transparent">
-                                <SelectValue placeholder="Select Specialty" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {PERSONAS.map(persona => (
-                                    <SelectItem key={persona.id} value={persona.id} title={persona.description}>
-                                        {persona.name}
-                                    </SelectItem>
-                                ))}
-                                {customPersonas.length > 0 && (
-                                    <>
-                                        <div className="h-px bg-border my-1" />
-                                        <div className="px-2 py-1">
-                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Custom</p>
-                                        </div>
-                                        {customPersonas.map(cp => (
-                                            <SelectItem key={cp.id} value={cp.id}>
-                                                ✨ {cp.name}
-                                            </SelectItem>
-                                        ))}
-                                    </>
-                                )}
-                            </SelectContent>
-                        </Select>
-                    ) : (
-                        <button
-                            onClick={handleLockedPersonaTap}
-                            className="flex items-center gap-1.5 h-9 px-3 rounded-md border border-border/50 bg-background/50 text-sm text-muted-foreground cursor-not-allowed opacity-70 transition-colors"
-                        >
-                            <Lock className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">General Practitioner</span>
-                            <span className="sm:hidden">GP</span>
-                            <span className="text-[10px]"></span>
-                        </button>
-                    )}
+                    <Select value={activePersonaId} onValueChange={setActivePersona}>
+                        <SelectTrigger className="w-[180px] h-9 bg-background/50 border-border/50 text-sm focus:ring-1 focus:ring-ring focus:border-transparent">
+                            <SelectValue placeholder="Select Specialty" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {PERSONAS.map(persona => (
+                                <SelectItem key={persona.id} value={persona.id} title={persona.description}>
+                                    {persona.name}
+                                </SelectItem>
+                            ))}
+                            {customPersonas.length > 0 && (
+                                <>
+                                    <div className="h-px bg-border my-1" />
+                                    <div className="px-2 py-1">
+                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Custom</p>
+                                    </div>
+                                    {customPersonas.map(cp => (
+                                        <SelectItem key={cp.id} value={cp.id}>
+                                            ✨ {cp.name}
+                                        </SelectItem>
+                                    ))}
+                                </>
+                            )}
+                        </SelectContent>
+                    </Select>
 
                     <SettingsDialog />
 

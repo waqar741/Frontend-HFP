@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatSession, Message, Role, NodeInfo } from '@/types/chat';
 
@@ -77,6 +78,7 @@ interface ChatState {
     deleteSession: (sessionId: string) => void;
     renameSession: (sessionId: string, newTitle: string) => void;
     fetchNodes: () => Promise<void>;
+    fetchUserChats: (token: string) => Promise<void>;
     setActiveNode: (address: string) => void;
     stopGeneration: () => void;
     deleteMessage: (sessionId: string, messageId: string) => void;
@@ -186,6 +188,21 @@ export const useChatStore = create<ChatState>()(
                 } catch (error) {
                     console.error('Node discovery failed:', error);
                     set({ availableNodes: [] });
+                }
+            },
+
+            fetchUserChats: async (token) => {
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8095/api/auth';
+                try {
+                    const res = await fetch(`${API_URL}/history`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const sessions = await res.json();
+                        set({ sessions: sessions || [], currentSessionId: sessions?.length > 0 ? sessions[0].id : null });
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch user chats', e);
                 }
             },
 
@@ -426,6 +443,7 @@ export const useChatStore = create<ChatState>()(
         }),
         {
             name: 'hfp-secure-storage',
+            storage: createJSONStorage(() => safeStorage),
         }
     )
 );

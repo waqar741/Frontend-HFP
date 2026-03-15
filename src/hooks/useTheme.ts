@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { safeStorage } from '../lib/storage';
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -9,7 +10,7 @@ export function useTheme() {
 
     useEffect(() => {
         // Load persisted theme
-        const savedTheme = localStorage.getItem('hfp-theme') as Theme;
+        const savedTheme = safeStorage.getItem('hfp-theme') as Theme;
         if (savedTheme) {
             setTheme(savedTheme);
         }
@@ -30,7 +31,7 @@ export function useTheme() {
         }
 
         // Persist
-        localStorage.setItem('hfp-theme', theme);
+        safeStorage.setItem('hfp-theme', theme);
     }, [theme]);
 
     // Force hfp-navy background if dark mode (optional, handled by global css variables usually)
