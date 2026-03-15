@@ -192,9 +192,8 @@ export const useChatStore = create<ChatState>()(
             },
 
             fetchUserChats: async (token) => {
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8095/api/auth';
                 try {
-                    const res = await fetch(`${API_URL}/history`, {
+                    const res = await fetch('/api/auth/history', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     if (res.ok) {

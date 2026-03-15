@@ -1,6 +1,36 @@
-// Auth API URL: In production, Caddy proxies /api/auth/* to the Go orchestrator.
-// In local dev, you can set NEXT_PUBLIC_API_URL to point directly to the Go server.
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/auth';
+const API_URL = '/api/auth';
+
+async function parseAuthResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+    const contentType = response.headers.get('content-type') || '';
+    const rawBody = await response.text();
+
+    let parsedBody: any = null;
+    if (rawBody && contentType.includes('application/json')) {
+        try {
+            parsedBody = JSON.parse(rawBody);
+        } catch {
+            parsedBody = null;
+        }
+    }
+
+    if (!response.ok) {
+        const message =
+            parsedBody?.error ||
+            parsedBody?.message ||
+            `${fallbackMessage} (${response.status} ${response.statusText})`;
+        throw new Error(message);
+    }
+
+    if (!rawBody) {
+        return {} as T;
+    }
+
+    if (parsedBody !== null) {
+        return parsedBody as T;
+    }
+
+    throw new Error('Authentication service returned an invalid response');
+}
 
 export const loginUser = async (email: string, password: string): Promise<any> => {
     const response = await fetch(`${API_URL}/login`, {
@@ -8,11 +38,7 @@ export const loginUser = async (email: string, password: string): Promise<any> =
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
     });
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Login failed');
-    }
-    return response.json();
+    return parseAuthResponse(response, 'Login failed');
 };
 
 export const signupUser = async (name: string, email: string, password: string): Promise<any> => {
@@ -21,11 +47,7 @@ export const signupUser = async (name: string, email: string, password: string):
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
     });
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Signup failed');
-    }
-    return response.json();
+    return parseAuthResponse(response, 'Signup failed');
 };
 
 export const forgotPassword = async (email: string): Promise<any> => {
@@ -34,11 +56,7 @@ export const forgotPassword = async (email: string): Promise<any> => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
     });
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Request failed');
-    }
-    return response.json();
+    return parseAuthResponse(response, 'Request failed');
 };
 
 export const resetPassword = async (token: string, password: string): Promise<any> => {
@@ -47,9 +65,5 @@ export const resetPassword = async (token: string, password: string): Promise<an
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
     });
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Reset failed');
-    }
-    return response.json();
+    return parseAuthResponse(response, 'Reset failed');
 };

@@ -15,7 +15,7 @@ The authentication system uses **JWT (JSON Web Tokens)** for stateless session m
 ### Frontend (`/signup` & `AuthModal`)
 1. The user provides their `Full Name`, `Email Address`, `Password`, and `Confirm Password`.
 2. The frontend validates that the passwords match and meet the minimum length (6 characters).
-3. A `POST` request is sent to `${NEXT_PUBLIC_API_URL}/signup` (e.g., `http://localhost:8095/api/auth/signup`) explicitly passing the `name`, `email`, and `password` fields.
+3. A `POST` request is sent to the frontend's same-origin route `/api/auth/signup`, and Next.js proxies that request to the upstream auth service.
 
 ### Backend (`orchestrator.go: handleSignup`)
 1. **Validation**: Ensures all fields are present and the email is valid/sanitized.
@@ -31,7 +31,7 @@ The authentication system uses **JWT (JSON Web Tokens)** for stateless session m
 
 ### Frontend (`/login` & `AuthModal`)
 1. The user provides their `Email Address` and `Password`.
-2. A `POST` request is sent to `${NEXT_PUBLIC_API_URL}/login` with the credentials.
+2. A `POST` request is sent to the frontend's same-origin route `/api/auth/login`, which Next.js proxies to the upstream auth service.
 
 ### Backend (`orchestrator.go: handleLogin`)
 1. **Lookup**: Queries the `users` table for a record matching the provided email.
@@ -45,7 +45,7 @@ The authentication system uses **JWT (JSON Web Tokens)** for stateless session m
 
 ### Frontend Request (`AuthModal` Forgot Password View)
 1. The user enters their email address and clicks "Send Reset Link".
-2. A `POST` request is sent to `${NEXT_PUBLIC_API_URL}/forgot-password`.
+2. A `POST` request is sent to `/api/auth/forgot-password` and proxied by Next.js to the upstream auth service.
 
 ### Backend Processing (`orchestrator.go: handleForgotPassword`)
 1. **Lookup & Security**: Checks if the email exists. **Crucially**, it always returns a success message to the frontend regardless of whether the email exists or not. This prevents "email enumeration" attacks (where malicious actors guess emails to see who is registered).
@@ -66,17 +66,19 @@ The authentication system uses **JWT (JSON Web Tokens)** for stateless session m
 
 To make this architecture securely connect the Next.js frontend to the Go orchestrator in different environments (Local vs. Production), the following environment variables are required.
 
-### 1. Frontend Configuration (`.env`)
-The frontend needs to know where the Go backend's authentication endpoint is located.
+### 1. Frontend / Next.js Configuration (`.env`)
+The frontend now talks to same-origin `/api/auth/*` routes, and the Next.js route handler decides where to forward those requests.
 
 - **Local Development**:
   ```env
   NEXT_PUBLIC_API_URL="http://localhost:8095/api/auth"
   ```
-- **Production** (Assuming Caddy is proxying `/api` traffic to the backend):
+- **Production** (preferred when auth is hosted separately from the frontend):
   ```env
-  NEXT_PUBLIC_API_URL="https://your-production-domain.com/api/auth"
+  AUTH_API_BASE_URL="https://your-production-domain.com"
   ```
+
+`AUTH_API_BASE_URL` may be either the host root (for example `https://your-production-domain.com`) or the full auth path (`https://your-production-domain.com/api/auth`). If it is not set, the route handler falls back to `NEXT_PUBLIC_API_URL`, then `HFP_API_BASE_URL`, then `http://localhost:8095`.
 
 ### 2. Backend Configuration (`orchestrator.go` Environment Variables)
 The Go backend requires these variables to be set in its running environment (e.g., via a `.env` file, system variables, or a Docker/Systemd configuration).
