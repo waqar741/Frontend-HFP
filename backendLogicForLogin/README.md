@@ -1,43 +1,118 @@
 # Login & Signup Implementation Guide
 
-This folder contains all the boilerplate code needed to implement a robust JWT authentication system for your HealthFirstPriority app.
+This folder contains the server-side code that powers the JWT authentication system for HealthFirstPriority.
 
-## Folder Structure Summary
-- `backend/`: Code meant to be deployed on your Digital Ocean server. Uses Express.js, PostgreSQL, and bcrypt for auth.
-- `frontend/`: Code meant to be integrated into your Next.js application for talking to the backend.
+## Folder Structure
 
----
-
-## 1. Backend Setup (Digital Ocean)
-Your backend needs to expose endpoints for the frontend to hit.
-
-### Prerequisites
-1. Ensure Node.js and PostgreSQL are installed on your Digital Ocean server.
-2. Open yor database and run the SQL commands found in `backend/init.sql` to create the `users` table.
-
-### Installation & Running
-1. Copy the `backend` folder to your Digital Ocean server.
-2. Traverse into the folder: `cd backend`
-3. Install the dependencies: `npm install` 
-4. Rename `.env.example` to `.env` and fill in your actual Digital Ocean PostgreSQL details and a strong random string for `JWT_SECRET`.
-5. Start the server using `node server.js` (or use PM2 for production execution: `pm2 start server.js`).
-
----
-
-## 2. Frontend Setup (Next.js)
-
-### Integration into your current code
-1. **API Functions (`api.ts`)**: Move these functions into your Next.js project's utilities (e.g., `lib/api.ts` or `services/api.ts`).
-2. **State Management (`authStore.ts`)**: Move this into your project (e.g., `store/authStore.ts`). It utilizes `zustand` which you already have installed.
-3. **UI Components (`LoginForm.tsx`)**: Drop this into an app route like `app/login/page.tsx` or `app/(auth)/login/page.tsx` and fix the import paths for `api` and `authStore`.
-   * Note: You will need to make a `SignupForm.tsx` that calls `signupUser()` from `api.ts` in the exact same way.
-4. **Environment Configuration**: Add the address of your Digital Ocean backend to your Next.js `.env` file at the root of `HealthFirstPriority`:
-```env
-NEXT_PUBLIC_API_URL=http://your-digital-ocean-ip:5000/api
+```
+backendLogicForLogin/
+└── server_files/
+    ├── Caddyfile          # Caddy reverse proxy configuration
+    └── orchestrator.go    # Go auth/proxy backend ("Go Brain")
 ```
 
-## Flow Overview
-1.  **Signup:** Frontend form calls `POST /api/signup`. Backend hashes the password securely using `bcrypt` and inserts it into PostgreSQL. It returns a JWT.
-2.  **Login:** Frontend form calls `POST /api/login`. Backend queries PostgreSQL and uses `bcrypt.compare` to verify passwords. It returns a JWT.
-3.  **Authentication:** After the frontend receives a token during Login/Signup, the Zustand `authStore` secures it in `localStorage`. 
-4.  **Protecting Routes:** Any future API requests that require the user to be logged in should map the token inside an `Authorization: Bearer <token>` HTTP header, and the backend Express route will read it through the `authenticateToken` middleware.
+---
+
+## Architecture Overview
+
+```
+Browser → Next.js (/api/auth/*) → Caddy (dev-ai.nomineelife.com) → Go Brain (:8095)
+```
+
+1. **Frontend** calls same-origin `/api/auth/*` routes (login, signup, forgot-password, reset-password, history).
+2. **Next.js** route handler (`src/app/api/auth/[...path]/route.ts`) proxies these to the upstream `AUTH_API_BASE_URL`.
+3. **Caddy** receives the request on `dev-ai.nomineelife.com` and routes `/api/auth/*` to `127.0.0.1:8095`.
+4. **Go orchestrator** handles auth logic, JWT generation, bcrypt password hashing, and database operations.
+
+---
+
+## 1. Go Orchestrator (`orchestrator.go`)
+
+A single Go binary that serves as both the auth backend and an AI proxy.
+
+### Auth Endpoints
+
+| Method | Path | Handler | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/api/auth/signup` | `handleSignup` | Register a new user |
+| POST | `/api/auth/login` | `handleLogin` | Authenticate and return JWT |
+| POST | `/api/auth/forgot-password` | `handleForgotPassword` | Send password reset email |
+| POST | `/api/auth/reset-password` | `handleResetPassword` | Reset password with token |
+| GET | `/api/auth/history` | `handleHistory` | Fetch user's chat history |
+
+### Environment Variables
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `NET_TYPE` | Network type (`tcp` or `unix`) | `tcp` |
+| `NET_ADDR` | Listen address | `:8095` |
+| `DB_DRIVER` | Database driver (`sqlite3` or `postgres`) | `sqlite3` |
+| `JWT_SECRET` | JWT signing secret (**change in production!**) | `hfp-dev-secret-change-me-in-production` |
+| `FRONTEND_URL` | Used in password reset email links | `https://dev-ai.nomineelife.com` |
+| `SMTP_HOST` | SMTP server for sending emails | *(empty = logs links to console)* |
+| `SMTP_PORT` | SMTP port | `587` |
+| `SMTP_USER` | SMTP username | *(empty)* |
+| `SMTP_PASS` | SMTP password | *(empty)* |
+| `SMTP_FROM` | From address for emails | `noreply@healthfirstpriority.com` |
+
+### Database Schema
+
+The orchestrator auto-creates two tables on startup:
+
+- **`users`**: `id`, `name`, `email`, `password_hash`, `reset_token`, `reset_expiry`, `created_at`
+- **`chat_history`**: `id`, `user_id`, `session_id`, `role`, `content`, `created_at`
+
+---
+
+## 2. Caddyfile (Reverse Proxy)
+
+Caddy handles TLS termination, routing, and load balancing.
+
+### Key Routing Rules
+
+```caddyfile
+dev-ai.nomineelife.com {
+    # Auth → Go Brain (preserves /api/auth prefix)
+    handle /api/auth/* {
+        reverse_proxy 127.0.0.1:8095
+    }
+
+    # AI proxy → Go Brain
+    handle /v1/* {
+        reverse_proxy 127.0.0.1:8095
+    }
+
+    # Everything else → Next.js frontend
+    handle {
+        reverse_proxy 127.0.0.1:3000
+    }
+}
+```
+
+> **⚠️ Critical:** The auth route uses `handle`, **not** `handle_path`. The `handle_path` directive strips the path prefix before forwarding, which would break Go's route matching (Go expects `/api/auth/login`, not `/login`).
+
+---
+
+## 3. Frontend Configuration
+
+In your Next.js `.env`:
+
+```env
+# Production: points to the server where Go Brain runs
+AUTH_API_BASE_URL=https://dev-ai.nomineelife.com/api/auth
+
+# Local dev: use when running Go Brain locally
+NEXT_PUBLIC_API_URL=http://localhost:8095/api/auth
+```
+
+The auth proxy (`src/app/api/auth/[...path]/route.ts`) checks variables in priority order:
+`AUTH_API_BASE_URL` → `NEXT_PUBLIC_API_URL` → `HFP_API_BASE_URL` → `http://localhost:8095`
+
+---
+
+## Deployment Steps
+
+1. **Build the Go binary** on the server: `go build -o orchestrator orchestrator.go`
+2. **Run it**: `./orchestrator` (or via systemd/PM2)
+3. **Replace the Caddyfile** and reload: `caddy reload --config /etc/caddy/Caddyfile`
+4. **Set environment variables** (especially `JWT_SECRET`, `DB_*`, and optionally `SMTP_*`)

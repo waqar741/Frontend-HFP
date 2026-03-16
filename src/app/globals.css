@@ -343,3 +343,49 @@ nextjs-portal {
   width: 0 !important;
   height: 0 !important;
 }
+
+/* EchoAI Widget Repositioning & Resizing
+   Prevent overlapping and ensure mobile frame fit
+   ============================================================ */
+#echoai-widget-container {
+  z-index: 40 !important;
+}
+
+@media (max-width: 768px) {
+  #echoai-widget-container {
+    bottom: 80px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: calc(100vh - 120px) !important;
+    top: auto !important;
+  }
+
+  #echoai-widget-fab {
+    width: 48px !important;
+    height: 48px !important;
+    bottom: 0 !important;
+    /* Relative to container or if absolute then need care */
+    /* Often the FAB is inside the container or fixed separately */
+  }
+
+  /* Target the FAB if it's fixed separately */
+  #echoai-widget-fab {
+    width: 48px !important;
+    height: 48px !important;
+  }
+}
+
+@media (min-width: 769px) {
+  #echoai-widget-container {
+    bottom: 24px !important;
+    right: 24px !important;
+  }
+}
+
+/* Ensure the widget doesn't hide our scroll-to-bottom button */
+.chat-scroll-area+button {
+  z-index: 45 !important;
+}

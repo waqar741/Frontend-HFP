@@ -56,7 +56,7 @@ dev-ai.nomineelife.com {
     }
 
     # Auth API - Routed to Go Brain for JWT auth
-    handle_path /api/auth/* {
+    handle /api/auth/* {
         reverse_proxy 127.0.0.1:8095
     }
 

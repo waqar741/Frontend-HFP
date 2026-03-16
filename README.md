@@ -5,9 +5,11 @@ A secure, modern AI chat interface built with Next.js 14+ for healthcare-related
 ## 🌟 Features
 
 - **🔒 Secure Architecture**: Server-side API proxy to protect sensitive credentials
+- **🔐 JWT Authentication**: Full Login, Signup, and Forgot Password flows with a Go backend and bcrypt password hashing
 - **💬 Real-time Chat**: Streaming AI responses with Server-Sent Events (SSE)
 - **📚 Offline PDF Library**: Upload PDFs to a browser-local IndexedDB knowledge base with instant `@document` referencing and zero server processing limits.
 - **🎭 Multi-Persona Support**: Switch between specialized clinical nodes or create up to 3 custom system prompts for personalized AI behavior.
+- **🤖 EchoAI Widget**: Integrated EchoAI avatar widget for interactive AI assistance
 - **🎨 Modern UI**: Clinical design with dark mode support and glassmorphism effects
 - **📱 Responsive Design**: Mobile-first approach with adaptive layouts
 - **⚙️ Customizable Settings**: Light/Dark/System theme preferences, fine-grained export options, chat history versioning
@@ -93,22 +95,29 @@ pnpm install
 Create a `.env` or `.env.local` file in the root directory with the following variables:
 
 ```env
-# API Configuration
-HFP_API_BASE_URL=<your-api-base-url>
-HFP_API_KEY=<your-api-key>
+# AI Chat API
+HFP_API_BASE_URL=https://ai.nomineelife.com
 
-# Optional: Additional configuration
-# NODE_ENV=development
+# Authentication API (Go orchestrator on production server)
+AUTH_API_BASE_URL=https://dev-ai.nomineelife.com/api/auth
+
+# Local development fallback (used when Go brain runs locally)
+NEXT_PUBLIC_API_URL=http://localhost:8095/api/auth
 ```
 
 > **Important**: Never commit `.env` files to version control. The `.gitignore` file already excludes them.
 
 #### Environment Variables Explained
 
-- `HFP_API_BASE_URL`: The base URL for your AI API endpoint
-- `HFP_API_KEY`: Your API authentication key for secure access
+| Variable | Purpose | Example |
+| :--- | :--- | :--- |
+| `HFP_API_BASE_URL` | Base URL for the AI chat API endpoint | `https://ai.nomineelife.com` |
+| `AUTH_API_BASE_URL` | Production auth API URL (checked first) | `https://dev-ai.nomineelife.com/api/auth` |
+| `NEXT_PUBLIC_API_URL` | Local dev fallback for auth API | `http://localhost:8095/api/auth` |
 
-> **Note**: These environment variables are only accessible server-side through the `/api/chat` route, ensuring your API credentials are never exposed to the client.
+The auth proxy (`src/app/api/auth/[...path]/route.ts`) checks variables in this priority order: `AUTH_API_BASE_URL` → `NEXT_PUBLIC_API_URL` → `HFP_API_BASE_URL` → `http://localhost:8095`.
+
+> **Note**: Server-side environment variables are only accessible through API routes (`/api/chat`, `/api/auth/*`), ensuring credentials are never exposed to the client.
 
 ## 🏃 Running the Application
 
@@ -154,12 +163,19 @@ HealthFirstPriorty/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── api/
-│   │   │   └── chat/
-│   │   │       └── route.ts   # Server-side API proxy
-│   │   ├── globals.css        # Global styles & theme variables
-│   │   ├── layout.tsx         # Root layout
+│   │   │   ├── auth/
+│   │   │   │   └── [...path]/
+│   │   │   │       └── route.ts   # Auth API proxy (login, signup, etc.)
+│   │   │   ├── chat/
+│   │   │   │   └── route.ts       # Chat API proxy
+│   │   │   └── nodes/
+│   │   │       └── route.ts       # Node info API
+│   │   ├── globals.css        # Global styles, themes & widget overrides
+│   │   ├── layout.tsx         # Root layout (includes EchoAI widget)
 │   │   └── page.tsx           # Home page
 │   ├── components/
+│   │   ├── auth/              # Authentication components
+│   │   │   └── AuthModal.tsx  # Login/Signup/Forgot Password modal
 │   │   ├── chat/              # Chat-related components
 │   │   │   ├── ChatArea.tsx   # Message display area
 │   │   │   ├── ChatHeader.tsx # Header with node selector
@@ -168,36 +184,31 @@ HealthFirstPriorty/
 │   │   │   ├── ChatMessage.tsx    # Individual message component
 │   │   │   └── NodeSelector.tsx   # Node selection dropdown
 │   │   ├── layout/            # Layout components
-│   │   │   └── AppShell.tsx   # Main app shell
+│   │   │   ├── AppShell.tsx   # Main app shell
+│   │   │   └── Sidebar.tsx    # Navigation sidebar
 │   │   ├── settings/          # Settings components
 │   │   │   └── SettingsDialog.tsx # Settings modal
-│   │   ├── ui/                # shadcn/ui components
-│   │   │   ├── button.tsx
-│   │   │   ├── dialog.tsx
-│   │   │   ├── dropdown-menu.tsx
-│   │   │   ├── input.tsx
-│   │   │   ├── label.tsx
-│   │   │   ├── popover.tsx
-│   │   │   ├── radio-group.tsx
-│   │   │   ├── scroll-area.tsx
-│   │   │   ├── select.tsx
-│   │   │   └── sheet.tsx
-│   │   └── ThemeInitializer.tsx  # Dark mode initializer
+│   │   └── ui/                # shadcn/ui components
 │   ├── hooks/                 # Custom React hooks
-│   │   └── useTheme.ts        # Theme management hook
+│   │   ├── useChatStore.ts    # Chat state management
+│   │   └── useUIStore.ts      # UI state management
 │   ├── lib/                   # Utility libraries
-│   │   ├── api-client.ts      # Frontend API client
+│   │   ├── api.ts             # Auth API functions (login, signup, etc.)
+│   │   ├── api-client.ts      # Chat API client
 │   │   ├── export-utils.ts    # Export functionality
 │   │   └── utils.ts           # General utilities
+│   ├── store/
+│   │   └── authStore.ts       # Zustand auth state (JWT, user)
 │   └── types/                 # TypeScript type definitions
+├── backendLogicForLogin/       # Server deployment files
+│   └── server_files/
+│       ├── Caddyfile           # Caddy reverse proxy config
+│       └── orchestrator.go     # Go auth backend
 ├── .env                       # Environment variables (gitignored)
-├── .gitignore                 # Git ignore rules
+├── auth_documentation.md      # Auth architecture documentation
 ├── components.json            # shadcn/ui configuration
-├── eslint.config.mjs          # ESLint configuration
 ├── next.config.ts             # Next.js configuration
 ├── package.json               # Project dependencies
-├── postcss.config.mjs         # PostCSS configuration
-├── tsconfig.json              # TypeScript configuration
 └── README.md                  # This file
 ```
 
@@ -296,18 +307,28 @@ npx shadcn@latest add tabs
 
 ## 🌐 Deployment
 
-### Vercel (Recommended)
+### Self-Hosted (Current Setup)
+
+The application runs on a server with Caddy as the reverse proxy:
+
+1. Build the Next.js app: `npm run build`
+2. Start with PM2: `pm2 start npm --name hfp -- start`
+3. Caddy serves traffic on `dev-ai.nomineelife.com`
+4. Go orchestrator handles auth on port `8095`
+
+Required environment variables on the server:
+- `HFP_API_BASE_URL` — AI chat API base URL
+- `AUTH_API_BASE_URL` — Auth API URL
+- `JWT_SECRET` — Must be a strong random string in production
+
+### Vercel (Alternative)
 
 1. Push your code to GitHub/GitLab/Bitbucket
 2. Import project to [Vercel](https://vercel.com)
 3. Add environment variables in Vercel dashboard:
    - `HFP_API_BASE_URL`
-   - `HFP_API_KEY`
+   - `AUTH_API_BASE_URL`
 4. Deploy
-
-### Environment Variables on Vercel
-
-> **Critical**: Ensure `HFP_API_BASE_URL` and `HFP_API_KEY` are set in your Vercel project settings under **Settings → Environment Variables** before deploying.
 
 ### Other Platforms
 

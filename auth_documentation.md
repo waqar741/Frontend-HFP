@@ -75,10 +75,10 @@ The frontend now talks to same-origin `/api/auth/*` routes, and the Next.js rout
   ```
 - **Production** (preferred when auth is hosted separately from the frontend):
   ```env
-  AUTH_API_BASE_URL="https://your-production-domain.com"
+  AUTH_API_BASE_URL="https://dev-ai.nomineelife.com/api/auth"
   ```
 
-`AUTH_API_BASE_URL` may be either the host root (for example `https://your-production-domain.com`) or the full auth path (`https://your-production-domain.com/api/auth`). If it is not set, the route handler falls back to `NEXT_PUBLIC_API_URL`, then `HFP_API_BASE_URL`, then `http://localhost:8095`.
+`AUTH_API_BASE_URL` may be either the host root (for example `https://dev-ai.nomineelife.com`) or the full auth path (`https://dev-ai.nomineelife.com/api/auth`). If it is not set, the route handler falls back to `NEXT_PUBLIC_API_URL`, then `HFP_API_BASE_URL`, then `http://localhost:8095`.
 
 ### 2. Backend Configuration (`orchestrator.go` Environment Variables)
 The Go backend requires these variables to be set in its running environment (e.g., via a `.env` file, system variables, or a Docker/Systemd configuration).
@@ -101,11 +101,13 @@ If these are left blank locally, the password reset links will just be printed i
 ### 3. Caddy Reverse Proxy (Production Routing)
 If you are deploying on a server using Caddy, your `Caddyfile` needs to properly route the `/api/auth/*` requests to the Go orchestrator instance.
 
+> **⚠️ Important:** Use `handle`, **not** `handle_path`. The `handle_path` directive strips the matched prefix before forwarding, so Go would receive `/login` instead of `/api/auth/login` and no route would match.
+
 ```caddyfile
-your-production-domain.com {
-    # 1. Route API Auth requests strictly to the Go Orchestrator backend
-    handle_path /api/auth/* {
-        # Assuming Go is running locally on port 8095 in production
+dev-ai.nomineelife.com {
+    # 1. Route API Auth requests to the Go Orchestrator backend
+    #    Use `handle` (NOT `handle_path`) to preserve the /api/auth prefix
+    handle /api/auth/* {
         reverse_proxy localhost:8095
     }
 

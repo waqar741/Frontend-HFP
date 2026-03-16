@@ -29,7 +29,6 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
 
     const { sessions, currentSessionId, addMessage, createNewChat, updateMessage, activeNodeAddress, stopGeneration, activePersonaId, enterToSend, customPersonas } = useChatStore();
     const { documents, getContextForMentions } = useDocumentStore();
-    const { isAuthenticated, setShowAuthModal } = useAuthStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const mentionRef = useRef<HTMLDivElement>(null);
     const { toast, hideToast } = useToast();
@@ -38,11 +37,6 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
     const activePersona = customMatch
         ? { id: customMatch.id, name: customMatch.name, description: '', systemPrompt: customMatch.systemPrompt }
         : (PERSONAS.find(p => p.id === activePersonaId) || PERSONAS[0]);
-
-    const guestMessageCount = sessions.reduce(
-        (count, session) => count + session.messages.filter(message => message.role === 'user').length,
-        0
-    );
 
     // Load document library on mount
     useEffect(() => {
@@ -107,12 +101,6 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
 
     const handleSend = async () => {
         if (!input.trim()) return;
-
-        // Guest message limit check
-        if (!isAuthenticated && guestMessageCount >= 5) {
-            setShowAuthModal(true);
-            return;
-        }
 
         let activeSessionId = currentSessionId;
         if (!activeSessionId) {
@@ -358,22 +346,22 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
                 {/* Helper text / Guest counter */}
                 <div className="mt-1.5 text-center">
                     <p className="text-xs text-muted-foreground/60 hidden sm:block">
-                            {enterToSend ? (
-                                <>
-                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> to send
-                                    <span className="mx-2">·</span>
-                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> for new line
-                                </>
-                            ) : (
-                                <>
-                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> to send
-                                    <span className="mx-2">·</span>
-                                    <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> for new line
-                                </>
-                            )}
-                            <span className="mx-2">·</span>
-                            <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">@</kbd> to cite a document
-                        </p>
+                        {enterToSend ? (
+                            <>
+                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> to send
+                                <span className="mx-2">·</span>
+                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> for new line
+                            </>
+                        ) : (
+                            <>
+                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Shift + Enter</kbd> to send
+                                <span className="mx-2">·</span>
+                                <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">Enter</kbd> for new line
+                            </>
+                        )}
+                        <span className="mx-2">·</span>
+                        <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border/50 font-mono">@</kbd> to cite a document
+                    </p>
                 </div>
             </div>
 

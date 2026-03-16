@@ -219,7 +219,23 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 		outputWriter = w
 	}
 
-	io.Copy(outputWriter, resp.Body)
+	if isChat {
+		io.Copy(outputWriter, resp.Body)
+	} else if flusher, ok := w.(http.Flusher); ok {
+		buf := make([]byte, 4096)
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				outputWriter.Write(buf[:n])
+				flusher.Flush()
+			}
+			if readErr != nil {
+				break
+			}
+		}
+	} else {
+		io.Copy(outputWriter, resp.Body)
+	}
 
 	// 8. SAVE RESPONSE TO DB (Only if it was a chat)
 	if isChat {
