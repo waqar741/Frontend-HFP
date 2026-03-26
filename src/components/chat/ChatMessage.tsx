@@ -36,9 +36,14 @@ export function ChatMessage({
     const [viewingVersionIndex, setViewingVersionIndex] = useState<number | undefined>(undefined);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
     const { voicePreference } = useChatStore();
     const messageRef = useRef<HTMLDivElement>(null);
     const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     useEffect(() => {
         // Clean up speech synthesis when unmounting
@@ -268,7 +273,7 @@ export function ChatMessage({
                             {!isEditing && (
                                 <div className="message-actions flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <span className="text-[10px] text-muted-foreground mr-2 font-medium">
-                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                        {isMounted ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
                                     </span>
                                     {onEdit && (
                                         <Button
@@ -327,7 +332,7 @@ export function ChatMessage({
                                     <div className="hidden sm:block h-3.5 w-px bg-border shrink-0" />
 
                                     <span className="text-[10px] text-muted-foreground font-medium">
-                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                        {isMounted ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
                                     </span>
 
                                     {displayStats && (

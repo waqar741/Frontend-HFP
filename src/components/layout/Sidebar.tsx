@@ -30,7 +30,7 @@ import { Toast, useToast } from '@/components/ui/Toast';
 
 export function Sidebar() {
     const { sessions, currentSessionId, createNewChat, selectSession, deleteSession, renameSession, fetchUserChats } = useChatStore();
-    const { user, token, isAuthenticated, logout, setShowAuthModal } = useAuthStore();
+    const { user, token, isAuthenticated, isAuthLoading, logout, setShowAuthModal } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [libraryOpen, setLibraryOpen] = useState(false);
     const { toast, showToast, hideToast } = useToast();
@@ -213,7 +213,13 @@ export function Sidebar() {
 
             {/* Auth Section */}
             <div className="mt-4 pt-3 border-t border-sidebar-border shrink-0">
-                {isAuthenticated && user ? (
+                {isAuthLoading ? (
+                    /* Skeleton while auth state is being restored */
+                    <div className="flex items-center gap-2 px-2 py-2 animate-pulse">
+                        <div className="w-8 h-8 rounded-full bg-muted/30 shrink-0" />
+                        <div className="h-4 w-24 rounded bg-muted/30" />
+                    </div>
+                ) : isAuthenticated && user ? (
                     <div className="flex items-center justify-between w-full px-2 py-2 text-sm text-sidebar-foreground">
                         <div className="flex items-center gap-2 overflow-hidden">
                             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary shrink-0">
