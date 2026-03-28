@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { loginUser } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Loader2, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 
@@ -102,9 +101,9 @@ export default function LoginPage() {
                                 <label className="text-sm font-medium text-foreground/80 dark:text-zinc-300">
                                     Password
                                 </label>
-                                <Link href="#" className="text-xs font-semibold text-muted-foreground dark:text-zinc-400 hover:text-primary transition-colors">
+                                <a href="#" className="text-xs font-semibold text-muted-foreground dark:text-zinc-400 hover:text-primary transition-colors">
                                     Forgot password?
-                                </Link>
+                                </a>
                             </div>
                             <input
                                 type="password"
@@ -137,10 +136,7 @@ export default function LoginPage() {
                     </form>
 
                     <div className="mt-8 text-center text-sm font-medium text-muted-foreground dark:text-zinc-400 relative z-10">
-                        Don't have an account?{' '}
-                        <Link href="/signup" className="text-primary hover:text-primary/80 transition-colors">
-                            Create one now
-                        </Link>
+                        Contact your administrator if you do not have an account.
                     </div>
                 </div>
             </div>

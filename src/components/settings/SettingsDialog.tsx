@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X, Pencil, Volume2 } from 'lucide-react';
+import { Settings, Download, FileText, Sun, Moon, Monitor, FileCode, Database, Sliders, DatabaseBackup, AlertTriangle, CheckCircle, User, Type, MousePointer, ChevronsDown, Trash2, RotateCcw, X, Pencil, Volume2, Loader2, Lock, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -26,18 +26,27 @@ import { useChatStore, PERSONAS } from '@/hooks/useChatStore';
 import { exportAllChatsToText, exportAllChatsToPDF, exportAllChatsToMarkdown, exportAllChatsToCSV, exportAllChatsToJSON } from '@/lib/export-utils';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
+import { updateUserName, changePassword } from '@/lib/api';
 
-type TabId = 'general' | 'personas' | 'data';
+type TabId = 'general' | 'personas' | 'data' | 'account';
 type ToastInfo = { message: string; type: 'success' | 'error' } | null;
 
 export function SettingsDialog() {
     const { sessions, fontSize, setFontSize, enterToSend, setEnterToSend, autoScroll, setAutoScroll, voicePreference, setVoicePreference, customPersonas, addCustomPersona, deleteCustomPersona, editCustomPersona, activePersonaId, setActivePersona } = useChatStore();
     const { theme, setTheme } = useTheme();
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user, token, updateUser } = useAuthStore();
 
     const [activeTab, setActiveTab] = useState<TabId>('general');
     const [isAnonymized, setIsAnonymized] = useState(false);
     const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+
+    // Account tab state
+    const [newName, setNewName] = useState(user?.name || '');
+    const [nameLoading, setNameLoading] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const [passwordLoading, setPasswordLoading] = useState(false);
 
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [personaToDelete, setPersonaToDelete] = useState<{ id: string, name: string } | null>(null);
@@ -167,11 +176,12 @@ export function SettingsDialog() {
         setRestoreConfirmOpen(false);
     };
 
-    const tabs = [
+    const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
         { id: 'general', label: 'General', icon: Sliders },
         { id: 'personas', label: 'Personas', icon: User },
         { id: 'data', label: 'Data', icon: DatabaseBackup },
-    ] as const;
+        ...(isAuthenticated ? [{ id: 'account' as TabId, label: 'Account', icon: KeyRound }] : []),
+    ];
 
     return (
         <>
@@ -792,6 +802,145 @@ export function SettingsDialog() {
                                                 </div>
                                             </>
                                         )}
+                                    </div>
+                                )}
+
+                                {/* ── ACCOUNT ────────────────────────────────── */}
+                                {activeTab === 'account' && isAuthenticated && user && (
+                                    <div className="space-y-6">
+
+                                        {/* Profile Info */}
+                                        <div className="flex items-center gap-4 p-4 rounded-xl border border-border/60 bg-card">
+                                            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary text-lg font-bold shrink-0">
+                                                {user.name?.charAt(0)?.toUpperCase() || '?'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Name Update */}
+                                        <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <User className="h-4 w-4 text-muted-foreground" />
+                                                    <h3 className="text-sm font-semibold text-foreground">Display Name</h3>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Change how your name appears across the app.</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={newName}
+                                                    onChange={(e) => setNewName(e.target.value)}
+                                                    placeholder="Your display name"
+                                                    maxLength={100}
+                                                    className="flex-1 px-4 py-2.5 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-shadow"
+                                                    disabled={nameLoading}
+                                                />
+                                                <Button
+                                                    disabled={nameLoading || !newName.trim() || newName.trim() === user.name}
+                                                    className="rounded-lg px-5 shrink-0"
+                                                    onClick={async () => {
+                                                        if (!token) return;
+                                                        setNameLoading(true);
+                                                        try {
+                                                            const data = await updateUserName(token, newName.trim());
+                                                            updateUser(data.user);
+                                                            showToast('Name updated successfully!');
+                                                        } catch (err: any) {
+                                                            showToast(err.message || 'Failed to update name', 'error');
+                                                        } finally {
+                                                            setNameLoading(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {nameLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Password Change */}
+                                        <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Lock className="h-4 w-4 text-muted-foreground" />
+                                                    <h3 className="text-sm font-semibold text-foreground">Change Password</h3>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Update your password. Minimum 6 characters required.</p>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-medium text-muted-foreground ml-1">Current Password</label>
+                                                    <input
+                                                        type="password"
+                                                        value={currentPassword}
+                                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                                        placeholder="••••••••"
+                                                        autoComplete="current-password"
+                                                        className="w-full px-4 py-2.5 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-shadow"
+                                                        disabled={passwordLoading}
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-medium text-muted-foreground ml-1">New Password</label>
+                                                    <input
+                                                        type="password"
+                                                        value={newPassword}
+                                                        onChange={(e) => setNewPassword(e.target.value)}
+                                                        placeholder="••••••••"
+                                                        minLength={6}
+                                                        autoComplete="new-password"
+                                                        className="w-full px-4 py-2.5 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-shadow"
+                                                        disabled={passwordLoading}
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-medium text-muted-foreground ml-1">Confirm New Password</label>
+                                                    <input
+                                                        type="password"
+                                                        value={confirmNewPassword}
+                                                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                                        placeholder="••••••••"
+                                                        minLength={6}
+                                                        autoComplete="new-password"
+                                                        className="w-full px-4 py-2.5 text-sm rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 transition-shadow"
+                                                        disabled={passwordLoading}
+                                                    />
+                                                </div>
+                                                <Button
+                                                    disabled={passwordLoading || !currentPassword || !newPassword || !confirmNewPassword || newPassword.length < 6}
+                                                    className="w-full rounded-lg mt-1"
+                                                    onClick={async () => {
+                                                        if (newPassword !== confirmNewPassword) {
+                                                            showToast('New passwords do not match.', 'error');
+                                                            return;
+                                                        }
+                                                        if (!token) return;
+                                                        setPasswordLoading(true);
+                                                        try {
+                                                            await changePassword(token, currentPassword, newPassword);
+                                                            setCurrentPassword('');
+                                                            setNewPassword('');
+                                                            setConfirmNewPassword('');
+                                                            showToast('Password changed successfully!');
+                                                        } catch (err: any) {
+                                                            showToast(err.message || 'Failed to change password', 'error');
+                                                        } finally {
+                                                            setPasswordLoading(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {passwordLoading ? (
+                                                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</>
+                                                    ) : (
+                                                        'Update Password'
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 )}
 

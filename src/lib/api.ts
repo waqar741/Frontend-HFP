@@ -41,15 +41,6 @@ export const loginUser = async (email: string, password: string): Promise<any> =
     return parseAuthResponse(response, 'Login failed');
 };
 
-export const signupUser = async (name: string, email: string, password: string): Promise<any> => {
-    const response = await fetch(`${API_URL}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-    });
-    return parseAuthResponse(response, 'Signup failed');
-};
-
 export const forgotPassword = async (email: string): Promise<any> => {
     const response = await fetch(`${API_URL}/forgot-password`, {
         method: 'POST',
@@ -66,4 +57,32 @@ export const resetPassword = async (token: string, password: string): Promise<an
         body: JSON.stringify({ token, password }),
     });
     return parseAuthResponse(response, 'Reset failed');
+};
+
+export const updateUserName = async (token: string, name: string): Promise<any> => {
+    const response = await fetch(`${API_URL}/profile`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name }),
+    });
+    return parseAuthResponse(response, 'Failed to update name');
+};
+
+export const changePassword = async (
+    token: string,
+    currentPassword: string,
+    newPassword: string
+): Promise<any> => {
+    const response = await fetch(`${API_URL}/change-password`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return parseAuthResponse(response, 'Failed to change password');
 };

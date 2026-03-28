@@ -30,7 +30,7 @@ import { Toast, useToast } from '@/components/ui/Toast';
 
 export function Sidebar() {
     const { sessions, currentSessionId, createNewChat, selectSession, deleteSession, renameSession, fetchUserChats } = useChatStore();
-    const { user, token, isAuthenticated, logout, setShowAuthModal } = useAuthStore();
+    const { user, token, isAuthenticated, isAuthLoading, logout, setShowAuthModal } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [libraryOpen, setLibraryOpen] = useState(false);
     const { toast, showToast, hideToast } = useToast();
@@ -213,7 +213,13 @@ export function Sidebar() {
 
             {/* Auth Section */}
             <div className="mt-4 pt-3 border-t border-sidebar-border shrink-0">
-                {isAuthenticated && user ? (
+                {isAuthLoading ? (
+                    /* Skeleton while auth state is being restored */
+                    <div className="flex items-center gap-2 px-2 py-2 animate-pulse">
+                        <div className="w-8 h-8 rounded-full bg-muted/30 shrink-0" />
+                        <div className="h-4 w-24 rounded bg-muted/30" />
+                    </div>
+                ) : isAuthenticated && user ? (
                     <div className="flex items-center justify-between w-full px-2 py-2 text-sm text-sidebar-foreground">
                         <div className="flex items-center gap-2 overflow-hidden">
                             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary shrink-0">
@@ -232,7 +238,7 @@ export function Sidebar() {
                         className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" x2="3" y1="12" y2="12"></line></svg>
-                        Login / Sign up
+                        Login
                     </Button>
                 )}
             </div>
