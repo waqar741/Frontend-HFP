@@ -808,20 +808,19 @@ export function SettingsDialog() {
                                 {/* ── ACCOUNT ────────────────────────────────── */}
                                 {activeTab === 'account' && isAuthenticated && user && (
                                     <div className="space-y-6">
-
                                         {/* Profile Info */}
                                         <div className="flex items-center gap-4 p-4 rounded-xl border border-border/60 bg-card">
                                             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary text-lg font-bold shrink-0">
                                                 {user.name?.charAt(0)?.toUpperCase() || '?'}
                                             </div>
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
                                                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                                             </div>
                                         </div>
 
                                         {/* Name Update */}
-                                        <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
+                                        <div className="space-y-4 p-4 rounded-xl border border-border/60 bg-card">
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <User className="h-4 w-4 text-muted-foreground" />
@@ -829,7 +828,7 @@ export function SettingsDialog() {
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">Change how your name appears across the app.</p>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex flex-col sm:flex-row gap-2">
                                                 <input
                                                     type="text"
                                                     value={newName}
@@ -841,7 +840,7 @@ export function SettingsDialog() {
                                                 />
                                                 <Button
                                                     disabled={nameLoading || !newName.trim() || newName.trim() === user.name}
-                                                    className="rounded-lg px-5 shrink-0"
+                                                    className="rounded-lg px-5 sm:w-auto w-full"
                                                     onClick={async () => {
                                                         if (!token) return;
                                                         setNameLoading(true);
@@ -862,7 +861,7 @@ export function SettingsDialog() {
                                         </div>
 
                                         {/* Password Change */}
-                                        <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
+                                        <div className="space-y-4 p-4 rounded-xl border border-border/60 bg-card">
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <Lock className="h-4 w-4 text-muted-foreground" />
@@ -940,7 +939,6 @@ export function SettingsDialog() {
                                                 </Button>
                                             </div>
                                         </div>
-
                                     </div>
                                 )}
 
