@@ -807,7 +807,7 @@ export function SettingsDialog() {
 
                                 {/* ── ACCOUNT ────────────────────────────────── */}
                                 {activeTab === 'account' && isAuthenticated && user && (
-                                    <div className="w-full max-w-full min-w-0 space-y-6 overflow-x-hidden">
+                                    <div className="space-y-6">
 
                                         {/* Profile Info */}
                                         <div className="flex items-center gap-4 p-4 rounded-xl border border-border/60 bg-card">
