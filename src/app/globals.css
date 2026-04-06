@@ -354,9 +354,23 @@ nextjs-portal {
 @media (max-width: 768px) {
   #echoai-widget-container,
   #echoai-widget-fab,
+  #echoai-widget-ring,
+  [id^="echoai-widget-"],
+  [class^="echoai-widget-"],
+  [id*="echoai"],
+  [class*="echoai"],
   [id*="antigravity"],
-  iframe[src*="avatar.nomineelife"] {
+  iframe[src*="avatar.nomineelife"],
+  iframe[src*="nomineelife"] {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    position: fixed !important;
+    bottom: -1000px !important;
+    right: -1000px !important;
   }
 }
 

@@ -34,11 +34,10 @@ async function parseAuthResponse<T>(response: Response, fallbackMessage: string)
 
 export const loginUser = async (email: string, password: string): Promise<any> => {
     // ⚠️ HARDCODED TEST ACCOUNT — REMOVE IN PRODUCTION
-    if ((email === 'test@test.com' && password === 'test123') || 
-        (email === 'admin@hfp.com' && password === 'admin123')) {
+    if (email === 'test@test.com' && password === 'test123') {
         return {
-            user: { id: 'admin-user-001', name: 'Admin User', email: email },
-            token: 'admin-token-hardcoded-for-local-dev',
+            user: { id: 'test-user-001', name: 'Test User', email: 'test@test.com' },
+            token: 'test-token-hardcoded-for-local-dev',
         };
     }
 

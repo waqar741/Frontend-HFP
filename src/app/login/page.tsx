@@ -8,8 +8,8 @@ import { Loader2, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('admin@hfp.com');
-    const [password, setPassword] = useState('admin123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -133,22 +133,6 @@ export default function LoginPage() {
                                 </>
                             )}
                         </button>
-                        <div className="flex justify-center mt-4">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setEmail('admin@hfp.com');
-                                    setPassword('admin123');
-                                }}
-                                className="text-xs font-semibold text-primary/80 hover:text-primary transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 hover:bg-primary/10 border border-primary/10"
-                            >
-                                <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary/80"></span>
-                                </span>
-                                Use Demo Account
-                            </button>
-                        </div>
                     </form>
 
                     <div className="mt-8 text-center text-sm font-medium text-muted-foreground dark:text-zinc-400 relative z-10">
