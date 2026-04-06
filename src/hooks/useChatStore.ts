@@ -4,6 +4,59 @@ import { safeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatSession, Message, Role, NodeInfo } from '@/types/chat';
 
+// Debounce timers for cloud sync (module-level, not in store state)
+const _syncDebounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+function _getAuthToken(): string | null {
+    try {
+        const raw = safeStorage.getItem('token');
+        return raw || null;
+    } catch { return null; }
+}
+
+function _syncSessionToCloud(session: ChatSession) {
+    const token = _getAuthToken();
+    if (!token) return;
+    // Debounce: wait 2s after last change before syncing
+    if (_syncDebounceTimers[session.id]) {
+        clearTimeout(_syncDebounceTimers[session.id]);
+    }
+    _syncDebounceTimers[session.id] = setTimeout(() => {
+        delete _syncDebounceTimers[session.id];
+        fetch('/api/auth/history', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                id: session.id,
+                title: session.title,
+                messages: session.messages,
+                timestamp: session.timestamp,
+            }),
+        }).catch(err => console.warn('Cloud sync failed:', err));
+    }, 2000);
+}
+
+function _deleteSessionFromCloud(sessionId: string) {
+    const token = _getAuthToken();
+    if (!token) return;
+    fetch(`/api/auth/history?id=${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    }).catch(err => console.warn('Cloud delete failed:', err));
+}
+
+function _deleteAllSessionsFromCloud() {
+    const token = _getAuthToken();
+    if (!token) return;
+    fetch('/api/auth/history', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    }).catch(err => console.warn('Cloud clear failed:', err));
+}
+
 export interface Persona {
     id: string;
     name: string;
@@ -197,8 +250,10 @@ export const useChatStore = create<ChatState>()(
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     if (res.ok) {
-                        const sessions = await res.json();
-                        set({ sessions: sessions || [], currentSessionId: sessions?.length > 0 ? sessions[0].id : null });
+                        const cloudSessions = await res.json();
+                        if (Array.isArray(cloudSessions)) {
+                            set({ sessions: cloudSessions, currentSessionId: cloudSessions.length > 0 ? cloudSessions[0].id : null });
+                        }
                     }
                 } catch (e) {
                     console.error('Failed to fetch user chats', e);
@@ -254,6 +309,9 @@ export const useChatStore = create<ChatState>()(
 
                         timestamp: Date.now(),
                     };
+
+                    // Trigger cloud sync for this session
+                    _syncSessionToCloud(updatedSessions[sessionIndex]);
 
                     return { sessions: updatedSessions };
                 });
@@ -325,6 +383,9 @@ export const useChatStore = create<ChatState>()(
                             ? (newSessions.length > 0 ? newSessions[0].id : null)
                             : state.currentSessionId;
 
+                    // Delete from cloud
+                    _deleteSessionFromCloud(sessionId);
+
                     return {
                         sessions: newSessions,
                         currentSessionId: nextSessionId
@@ -333,6 +394,7 @@ export const useChatStore = create<ChatState>()(
             },
 
             clearAllSessions: () => {
+                _deleteAllSessionsFromCloud();
                 set({ sessions: [], currentSessionId: null });
             },
 
@@ -349,11 +411,15 @@ export const useChatStore = create<ChatState>()(
             },
 
             renameSession: (sessionId, newTitle) => {
-                set((state) => ({
-                    sessions: state.sessions.map((s) =>
+                set((state) => {
+                    const updatedSessions = state.sessions.map((s) =>
                         s.id === sessionId ? { ...s, title: newTitle } : s
-                    ),
-                }));
+                    );
+                    // Sync renamed session to cloud
+                    const renamed = updatedSessions.find(s => s.id === sessionId);
+                    if (renamed) _syncSessionToCloud(renamed);
+                    return { sessions: updatedSessions };
+                });
             },
 
             incrementRegenerationCount: (sessionId, messageId) => {

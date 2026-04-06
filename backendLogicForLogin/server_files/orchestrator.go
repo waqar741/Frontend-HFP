@@ -97,6 +97,8 @@ func main() {
 	mux.HandleFunc("/api/auth/login", handleCORS(handleLogin))
 	mux.HandleFunc("/api/auth/forgot-password", handleCORS(handleForgotPassword))
 	mux.HandleFunc("/api/auth/reset-password", handleCORS(handleResetPassword))
+	mux.HandleFunc("/api/auth/profile", handleCORS(handleUpdateProfile))
+	mux.HandleFunc("/api/auth/change-password", handleCORS(handleChangePassword))
 	mux.HandleFunc("/api/auth/history", handleCORS(handleHistory))
 
 	// Everything else → original proxy handler (unchanged)
@@ -131,7 +133,7 @@ func main() {
 func handleCORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if r.Method == "OPTIONS" {
@@ -621,6 +623,149 @@ func handleResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Password has been reset successfully. You can now log in."})
+}
+
+func handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "PUT" {
+		jsonError(w, "Method not allowed", 405)
+		return
+	}
+
+	// Validate JWT
+	authHeader := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		jsonError(w, "Unauthorized", 401)
+		return
+	}
+	claims, err := validateToken(strings.TrimPrefix(authHeader, "Bearer "))
+	if err != nil {
+		jsonError(w, "Invalid or expired token", 401)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "Invalid request body", 400)
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		jsonError(w, "Name is required", 400)
+		return
+	}
+	if len(req.Name) > 100 {
+		jsonError(w, "Name must be 100 characters or less", 400)
+		return
+	}
+
+	// Update name in DB
+	var updateQuery string
+	if DBDriver == "sqlite3" {
+		updateQuery = "UPDATE users SET name = ? WHERE id = ?"
+	} else {
+		updateQuery = "UPDATE users SET name = $1 WHERE id = $2"
+	}
+	_, err = db.Exec(updateQuery, req.Name, claims.UserID)
+	if err != nil {
+		log.Printf("❌ Failed to update profile: %v", err)
+		jsonError(w, "Failed to update profile", 500)
+		return
+	}
+
+	log.Printf("✅ Profile updated for user %s: name=%s", claims.UserID, req.Name)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Profile updated successfully",
+		"user": UserResponse{ID: claims.UserID, Name: req.Name, Email: claims.Email},
+	})
+}
+
+func handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "PUT" {
+		jsonError(w, "Method not allowed", 405)
+		return
+	}
+
+	// Validate JWT
+	authHeader := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		jsonError(w, "Unauthorized", 401)
+		return
+	}
+	claims, err := validateToken(strings.TrimPrefix(authHeader, "Bearer "))
+	if err != nil {
+		jsonError(w, "Invalid or expired token", 401)
+		return
+	}
+
+	var req struct {
+		CurrentPassword string `json:"currentPassword"`
+		NewPassword     string `json:"newPassword"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "Invalid request body", 400)
+		return
+	}
+
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		jsonError(w, "Current password and new password are required", 400)
+		return
+	}
+	if len(req.NewPassword) < 6 {
+		jsonError(w, "New password must be at least 6 characters", 400)
+		return
+	}
+
+	// Fetch current password hash
+	var passwordHash string
+	var fetchQuery string
+	if DBDriver == "sqlite3" {
+		fetchQuery = "SELECT password_hash FROM users WHERE id = ?"
+	} else {
+		fetchQuery = "SELECT password_hash FROM users WHERE id = $1"
+	}
+	err = db.QueryRow(fetchQuery, claims.UserID).Scan(&passwordHash)
+	if err != nil {
+		jsonError(w, "User not found", 404)
+		return
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.CurrentPassword)); err != nil {
+		jsonError(w, "Current password is incorrect", 403)
+		return
+	}
+
+	// Hash new password
+	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("❌ Bcrypt error: %v", err)
+		jsonError(w, "Internal server error", 500)
+		return
+	}
+
+	// Update password in DB
+	var updateQuery string
+	if DBDriver == "sqlite3" {
+		updateQuery = "UPDATE users SET password_hash = ? WHERE id = ?"
+	} else {
+		updateQuery = "UPDATE users SET password_hash = $1 WHERE id = $2"
+	}
+	_, err = db.Exec(updateQuery, string(newHash), claims.UserID)
+	if err != nil {
+		log.Printf("❌ Failed to update password: %v", err)
+		jsonError(w, "Failed to update password", 500)
+		return
+	}
+
+	log.Printf("✅ Password changed for user %s", claims.UserID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Password changed successfully"})
 }
 
 // =============================================================================

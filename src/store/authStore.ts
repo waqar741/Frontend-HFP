@@ -16,6 +16,7 @@ interface AuthState {
     showAuthModal: boolean;
     login: (user: User, token: string) => void;
     logout: () => void;
+    updateUser: (user: User) => void;
     setShowAuthModal: (open: boolean) => void;
     initializeAuth: () => Promise<void>;
 }
@@ -45,6 +46,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
 
     setShowAuthModal: (open) => set({ showAuthModal: open }),
+
+    updateUser: (user) => {
+        safeStorage.setItem('user', JSON.stringify(user));
+        set({ user });
+    },
 
     initializeAuth: async () => {
         const savedToken = safeStorage.getItem('token');

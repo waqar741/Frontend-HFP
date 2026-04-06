@@ -253,7 +253,10 @@ export function ChatInput({ initialPrompt, onPromptReceived }: ChatInputProps = 
         <>
             <DocumentLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} />
 
-            <div className="mx-auto w-full max-w-[48rem] px-3 pb-2 sm:px-4 sm:pb-3">
+            <div 
+                className="mx-auto w-full max-w-[48rem] px-3 pt-2 shrink-0"
+                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)' }}
+            >
                 {/* @mention autocomplete dropdown */}
                 {mentionQuery !== null && mentionMatches.length > 0 && (
                     <div

@@ -352,29 +352,11 @@ nextjs-portal {
 }
 
 @media (max-width: 768px) {
-  #echoai-widget-container {
-    bottom: 80px !important;
-    left: 12px !important;
-    right: 12px !important;
-    width: calc(100vw - 24px) !important;
-    max-width: none !important;
-    height: auto !important;
-    max-height: calc(100vh - 120px) !important;
-    top: auto !important;
-  }
-
-  #echoai-widget-fab {
-    width: 48px !important;
-    height: 48px !important;
-    bottom: 0 !important;
-    /* Relative to container or if absolute then need care */
-    /* Often the FAB is inside the container or fixed separately */
-  }
-
-  /* Target the FAB if it's fixed separately */
-  #echoai-widget-fab {
-    width: 48px !important;
-    height: 48px !important;
+  #echoai-widget-container,
+  #echoai-widget-fab,
+  [id*="antigravity"],
+  iframe[src*="avatar.nomineelife"] {
+    display: none !important;
   }
 }
 

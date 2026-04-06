@@ -33,6 +33,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <ThemeProvider
           attribute="class"
@@ -43,7 +44,9 @@ export default function RootLayout({
           <AuthInitializer />
           {children}
           <Script
-            src="https://avatar.nomineelife.com/echoai-widget.js"
+            src="https://avatar.nomineelife.com/echoai-widget.js?v=2"
+            data-token="ew_w0lpaJtA_pq3VzcBQIZkdA"
+            data-profile="ee23a0ad-9f5c-44f3-8f2e-acb27e38b5a0"
             strategy="lazyOnload"
           />
         </ThemeProvider>
