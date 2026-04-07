@@ -33,14 +33,6 @@ async function parseAuthResponse<T>(response: Response, fallbackMessage: string)
 }
 
 export const loginUser = async (email: string, password: string): Promise<any> => {
-    // ⚠️ HARDCODED TEST ACCOUNT — REMOVE IN PRODUCTION
-    if (email === 'test@test.com' && password === 'test123') {
-        return {
-            user: { id: 'test-user-001', name: 'Test User', email: 'test@test.com' },
-            token: 'test-token-hardcoded-for-local-dev',
-        };
-    }
-
     const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

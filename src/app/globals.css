@@ -352,6 +352,7 @@ nextjs-portal {
 }
 
 @media (max-width: 768px) {
+
   #echoai-widget-container,
   #echoai-widget-fab,
   #echoai-widget-ring,
